@@ -4,8 +4,9 @@ WORKDIR /app
 # Copy everything
 COPY . .
 
-# Install deps for web package
+# Install deps and build
 RUN cd packages/web && bun install
+RUN cd packages/web && bun run build
 
 # Set port
 ENV PORT=10000
