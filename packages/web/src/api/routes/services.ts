@@ -5,17 +5,27 @@ import { eq } from "drizzle-orm";
 import { authMiddleware, requireAuth } from "../middleware/auth";
 import type { HonoVariables } from "../types";
 
+async function requireAdmin(c: any, next: any) {
+  const user = c.get("user");
+  if (!user) return c.json({ message: "Unauthorized" }, 401);
+  const [dbUser] = await db.select({ role: schema.users.role }).from(schema.users).where(eq(schema.users.id, user.id));
+  if (dbUser?.role !== "admin") return c.json({ message: "Forbidden" }, 403);
+  return next();
+}
+
 export const servicesRouter = new Hono<{ Variables: HonoVariables }>()
   .use("*", authMiddleware)
-  // List all active services
+
+  // List all services (admin sees inactive too via ?all=true)
   .get("/", async (c) => {
-    const services = await db
-      .select()
-      .from(schema.services)
-      .where(eq(schema.services.isActive, true));
+    const all = c.req.query("all") === "true";
+    const services = all
+      ? await db.select().from(schema.services)
+      : await db.select().from(schema.services).where(eq(schema.services.isActive, true));
     return c.json(services, 200);
   })
-  // Seed default services (call once after deploy)
+
+  // Seed default services
   .post("/seed", async (c) => {
     const defaults = [
       { name: "Oil Change", description: "Full synthetic or conventional oil change with filter replacement", category: "Maintenance", basePrice: 49.99, durationMinutes: 45 },
@@ -35,30 +45,53 @@ export const servicesRouter = new Hono<{ Variables: HonoVariables }>()
     const services = await db.select().from(schema.services);
     return c.json(services, 200);
   })
+
   // Admin: create service
-  .post("/", requireAuth, async (c) => {
-    const user = c.get("user")!;
-    if ((user as any).role !== "admin") return c.json({ message: "Forbidden" }, 403);
+  .post("/", requireAuth, requireAdmin, async (c) => {
     const body = await c.req.json();
+    if (!body.name || !body.category || body.basePrice == null) {
+      return c.json({ message: "name, category, basePrice required" }, 400);
+    }
     const [service] = await db.insert(schema.services).values({
       name: body.name,
-      description: body.description,
+      description: body.description ?? null,
       category: body.category,
-      basePrice: body.basePrice,
-      durationMinutes: body.durationMinutes ?? 60,
+      basePrice: parseFloat(body.basePrice),
+      durationMinutes: body.durationMinutes ? parseInt(body.durationMinutes) : 60,
       isActive: true,
     }).returning();
     return c.json(service, 201);
   })
-  // Admin: toggle service active
-  .put("/:id", requireAuth, async (c) => {
-    const user = c.get("user")!;
-    if ((user as any).role !== "admin") return c.json({ message: "Forbidden" }, 403);
+
+  // Admin: update service (name, price, category, description, duration, isActive)
+  .patch("/:id", requireAuth, requireAdmin, async (c) => {
     const id = parseInt(c.req.param("id"));
     const body = await c.req.json();
-    const [updated] = await db.update(schema.services)
-      .set(body)
-      .where(eq(schema.services.id, id))
-      .returning();
+    const allowed = ["name", "description", "category", "basePrice", "durationMinutes", "isActive"] as const;
+    const updates: Record<string, any> = {};
+    for (const key of allowed) {
+      if (body[key] !== undefined) {
+        if (key === "basePrice") updates[key] = parseFloat(body[key]);
+        else if (key === "durationMinutes") updates[key] = parseInt(body[key]);
+        else updates[key] = body[key];
+      }
+    }
+    const [updated] = await db.update(schema.services).set(updates).where(eq(schema.services.id, id)).returning();
+    if (!updated) return c.json({ message: "Not found" }, 404);
     return c.json(updated, 200);
+  })
+
+  // Keep PUT for backwards compat (book.tsx etc.)
+  .put("/:id", requireAuth, requireAdmin, async (c) => {
+    const id = parseInt(c.req.param("id"));
+    const body = await c.req.json();
+    const [updated] = await db.update(schema.services).set(body).where(eq(schema.services.id, id)).returning();
+    return c.json(updated, 200);
+  })
+
+  // Admin: hard-delete service
+  .delete("/:id", requireAuth, requireAdmin, async (c) => {
+    const id = parseInt(c.req.param("id"));
+    await db.delete(schema.services).where(eq(schema.services.id, id));
+    return c.json({ success: true }, 200);
   });

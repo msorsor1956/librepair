@@ -8,6 +8,7 @@ import {
   Users, Calendar, Wrench, TrendingUp, Clock, CheckCircle,
   XCircle, AlertCircle, CreditCard, DollarSign, UserCheck,
   Car, Plus, Pencil, Trash2, X, ShieldCheck, ChevronRight, Phone, MapPin,
+  Tag, Timer, ToggleLeft, ToggleRight,
 } from "lucide-react";
 
 /* ── helpers ── */
@@ -315,6 +316,207 @@ function CreateAdminModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+/* ── Service Modal (add / edit) ── */
+function ServiceModal({ service, onClose }: { service: any | null; onClose: () => void }) {
+  const qc = useQueryClient();
+  const isEdit = !!service;
+  const [form, setForm] = useState({
+    name: service?.name ?? "",
+    description: service?.description ?? "",
+    category: service?.category ?? "",
+    basePrice: service?.basePrice?.toString() ?? "",
+    durationMinutes: service?.durationMinutes?.toString() ?? "60",
+    isActive: service?.isActive ?? true,
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  async function save() {
+    setSaving(true); setError("");
+    const url = isEdit ? `/api/services/${service.id}` : "/api/services";
+    const method = isEdit ? "PATCH" : "POST";
+    const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, basePrice: parseFloat(form.basePrice), durationMinutes: parseInt(form.durationMinutes) }) });
+    const data = await r.json();
+    if (!r.ok) { setError(data.message ?? "Error"); setSaving(false); return; }
+    qc.invalidateQueries({ queryKey: ["admin-services"] });
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-md rounded-2xl p-6" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold" style={{ fontFamily: "Rajdhani" }}>{isEdit ? "Edit Service" : "Add Service"}</h2>
+          <button onClick={onClose}><X size={18} style={{ color: "var(--color-muted)" }} /></button>
+        </div>
+        <div className="space-y-3">
+          <Input label="Service Name" value={form.name} onChange={set("name")} placeholder="e.g. Oil Change" />
+          <div className="flex gap-3">
+            <Input label="Category" value={form.category} onChange={set("category")} placeholder="e.g. Maintenance" />
+            <Input label="Base Price ($)" type="number" step="0.01" value={form.basePrice} onChange={set("basePrice")} placeholder="49.99" />
+          </div>
+          <Input label="Duration (minutes)" type="number" value={form.durationMinutes} onChange={set("durationMinutes")} placeholder="60" />
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium" style={{ color: "var(--color-muted)" }}>Description</label>
+            <textarea value={form.description} onChange={set("description")} rows={2}
+              placeholder="Short description of the service..."
+              className="px-3 py-2.5 rounded-lg text-sm resize-none focus:outline-none"
+              style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", color: "var(--color-primary)" }} />
+          </div>
+          {isEdit && (
+            <div className="flex items-center gap-3">
+              <label className="text-sm" style={{ color: "var(--color-secondary)" }}>Active</label>
+              <button type="button" onClick={() => setForm((f) => ({ ...f, isActive: !f.isActive }))}>
+                {form.isActive
+                  ? <ToggleRight size={24} style={{ color: "#22c55e" }} />
+                  : <ToggleLeft size={24} style={{ color: "var(--color-muted)" }} />}
+              </button>
+            </div>
+          )}
+        </div>
+        {error && <p className="text-xs mt-3" style={{ color: "#ef4444" }}>{error}</p>}
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose} className="flex-1 px-4 py-2 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)", color: "var(--color-muted)" }}>Cancel</button>
+          <button onClick={save} disabled={saving} className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: "var(--color-red)" }}>
+            {saving ? "Saving…" : isEdit ? "Save Changes" : "Create Service"}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ── Edit Appointment Modal (admin full control) ── */
+function EditAppointmentModal({ apt, services, onClose }: { apt: any; services: any[]; onClose: () => void }) {
+  const qc = useQueryClient();
+  const fmt = (d: any) => d ? new Date(d).toISOString().slice(0, 16) : "";
+  const [form, setForm] = useState({
+    status: apt.status ?? "pending",
+    scheduledAt: fmt(apt.scheduledAt),
+    serviceId: apt.serviceId?.toString() ?? "",
+    serviceType: apt.serviceType ?? "in-shop",
+    totalCost: apt.totalCost?.toString() ?? "",
+    bookingFee: apt.bookingFee?.toString() ?? "25",
+    notes: apt.notes ?? "",
+    mechanicNotes: apt.mechanicNotes ?? "",
+    customerAddress: apt.customerAddress ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  async function save() {
+    setSaving(true); setError("");
+    const r = await fetch(`/api/appointments/${apt.id}/admin-update`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, serviceId: form.serviceId || null }),
+    });
+    const data = await r.json();
+    if (!r.ok) { setError(data.message ?? "Error"); setSaving(false); return; }
+    qc.invalidateQueries({ queryKey: ["admin-appointments"] });
+    onClose();
+  }
+
+  async function deleteApt() {
+    if (!confirm(`Permanently delete appointment #${apt.id}? This cannot be undone.`)) return;
+    await fetch(`/api/appointments/${apt.id}/admin-delete`, { method: "DELETE" });
+    qc.invalidateQueries({ queryKey: ["admin-appointments"] });
+    onClose();
+  }
+
+  const inputStyle = { background: "var(--color-bg)", border: "1px solid var(--color-border)", color: "var(--color-primary)" };
+  const labelStyle = { color: "var(--color-muted)" };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
+        style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-bold" style={{ fontFamily: "Rajdhani" }}>Edit Appointment #{apt.id}</h2>
+            <p className="text-xs" style={{ color: "var(--color-muted)" }}>{apt.customerName ?? "Customer"}</p>
+          </div>
+          <button onClick={onClose}><X size={18} style={{ color: "var(--color-muted)" }} /></button>
+        </div>
+
+        <div className="space-y-3">
+          {/* Status + Service type */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" style={labelStyle}>Status</label>
+              <select value={form.status} onChange={set("status")} className="px-3 py-2.5 rounded-lg text-sm" style={inputStyle}>
+                {["pending","confirmed","in-progress","completed","cancelled"].map((s) => (
+                  <option key={s} value={s}>{s.replace(/-/g," ").replace(/\b\w/g,(c)=>c.toUpperCase())}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" style={labelStyle}>Service Type</label>
+              <select value={form.serviceType} onChange={set("serviceType")} className="px-3 py-2.5 rounded-lg text-sm" style={inputStyle}>
+                <option value="in-shop">In-Shop</option>
+                <option value="home-service">Home Service</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Scheduled date */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium" style={labelStyle}>Scheduled Date & Time</label>
+            <input type="datetime-local" value={form.scheduledAt} onChange={set("scheduledAt")}
+              className="px-3 py-2.5 rounded-lg text-sm" style={inputStyle} />
+          </div>
+
+          {/* Service */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium" style={labelStyle}>Service</label>
+            <select value={form.serviceId} onChange={set("serviceId")} className="px-3 py-2.5 rounded-lg text-sm" style={inputStyle}>
+              <option value="">— No service —</option>
+              {services.map((s) => <option key={s.id} value={s.id}>{s.name} (${Number(s.basePrice).toFixed(2)})</option>)}
+            </select>
+          </div>
+
+          {/* Pricing */}
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Total Cost ($)" type="number" step="0.01" value={form.totalCost} onChange={set("totalCost")} placeholder="0.00" />
+            <Input label="Booking Fee ($)" type="number" step="0.01" value={form.bookingFee} onChange={set("bookingFee")} placeholder="25.00" />
+          </div>
+
+          {/* Address (home service) */}
+          <Input label="Customer Address" value={form.customerAddress} onChange={set("customerAddress")} placeholder="123 Main St…" />
+
+          {/* Notes */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium" style={labelStyle}>Customer Notes</label>
+            <textarea value={form.notes} onChange={set("notes")} rows={2} className="px-3 py-2.5 rounded-lg text-sm resize-none" style={inputStyle} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium" style={labelStyle}>Mechanic Notes</label>
+            <textarea value={form.mechanicNotes} onChange={set("mechanicNotes")} rows={2} className="px-3 py-2.5 rounded-lg text-sm resize-none" style={inputStyle} />
+          </div>
+        </div>
+
+        {error && <p className="text-xs mt-3" style={{ color: "#ef4444" }}>{error}</p>}
+
+        <div className="flex gap-2 mt-5">
+          <button onClick={deleteApt} className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5"
+            style={{ backgroundColor: "rgba(239,68,68,0.12)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}>
+            <Trash2 size={13} /> Delete
+          </button>
+          <button onClick={onClose} className="flex-1 px-4 py-2 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)", color: "var(--color-muted)" }}>Cancel</button>
+          <button onClick={save} disabled={saving} className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: "var(--color-red)" }}>
+            {saving ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 /* ── Customer Row (expandable with vehicles) ── */
 function CustomerRow({ customer, isSuperAdmin }: { customer: any; isSuperAdmin: boolean }) {
   const qc = useQueryClient();
@@ -444,16 +646,19 @@ function CustomerRow({ customer, isSuperAdmin }: { customer: any; isSuperAdmin: 
 }
 
 /* ── MAIN ── */
-const TABS = ["Overview", "Appointments", "Customers", "Payments"] as const;
+const TABS = ["Overview", "Services", "Appointments", "Customers", "Payments"] as const;
 type Tab = typeof TABS[number];
 
 export default function AdminPage() {
   const [, navigate] = useLocation();
   const [tab, setTab] = useState<Tab>("Overview");
-  const [assignApt, setAssignApt]     = useState<any | null>(null);
-  const [editPayment, setEditPayment]  = useState<any | null>(null);
-  const [addCustomer, setAddCustomer]  = useState(false);
-  const [createAdmin, setCreateAdmin]  = useState(false);
+  const [assignApt, setAssignApt]       = useState<any | null>(null);
+  const [editPayment, setEditPayment]   = useState<any | null>(null);
+  const [addCustomer, setAddCustomer]   = useState(false);
+  const [createAdmin, setCreateAdmin]   = useState(false);
+  const [editService, setEditService]   = useState<any | null>(null);
+  const [addService, setAddService]     = useState(false);
+  const [editApt, setEditApt]           = useState<any | null>(null);
 
   const { data: session } = useQuery({ queryKey: ["session"], queryFn: () => authClient.getSession() });
   const user = (session as any)?.data?.user;
@@ -464,6 +669,13 @@ export default function AdminPage() {
   }
 
   const isSuperAdmin = user?.email === "m.sorsor@sonnietech.com";
+  const qcMain = useQueryClient();
+
+  async function deleteService(s: any) {
+    if (!confirm(`Delete "${s.name}"? This cannot be undone.`)) return;
+    await fetch(`/api/services/${s.id}`, { method: "DELETE" });
+    qcMain.invalidateQueries({ queryKey: ["admin-services"] });
+  }
 
   const { data: customersData } = useQuery({
     queryKey: ["admin-customers"],
@@ -489,9 +701,18 @@ export default function AdminPage() {
     },
   });
 
+  const { data: servicesData } = useQuery({
+    queryKey: ["admin-services"],
+    queryFn: async () => {
+      const r = await fetch("/api/services?all=true");
+      return r.json() as Promise<any[]>;
+    },
+  });
+
   const allUsers: any[]       = customersData?.users ?? [];
   const appointments: any[]   = appointmentsData?.appointments ?? [];
   const payments: any[]       = paymentsData?.payments ?? [];
+  const services: any[]       = Array.isArray(servicesData) ? servicesData : [];
   const mechanics             = allUsers.filter((u) => ["mechanic", "admin"].includes(u.role));
   const customers             = allUsers.filter((u) => u.role === "customer");
 
@@ -578,6 +799,7 @@ export default function AdminPage() {
                 <div className="space-y-3">
                   {[
                     { label: "Manage Customers",    action: () => setTab("Customers"),    icon: <Users size={16} /> },
+                    { label: "Manage Services",     action: () => setTab("Services"),     icon: <Wrench size={16} /> },
                     { label: "Manage Appointments", action: () => setTab("Appointments"), icon: <Calendar size={16} /> },
                     { label: "Manage Payments",     action: () => setTab("Payments"),     icon: <CreditCard size={16} /> },
                     { label: "Seed Services",       action: () => fetch("/api/services/seed", { method: "POST" }).then(() => alert("Services seeded!")), icon: <TrendingUp size={16} /> },
@@ -607,7 +829,7 @@ export default function AdminPage() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
-                      {["#", "Customer", "Date", "Type", "Status", "Mechanic", "Total", "Assign"].map((h) => (
+                      {["#", "Customer", "Date", "Type", "Status", "Mechanic", "Total", "Actions"].map((h) => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--color-muted)" }}>{h}</th>
                       ))}
                     </tr>
@@ -624,9 +846,83 @@ export default function AdminPage() {
                         <td className="px-4 py-3 text-sm" style={{ color: "var(--color-secondary)" }}>{apt.mechanicName ?? <span style={{ color: "var(--color-muted)" }}>—</span>}</td>
                         <td className="px-4 py-3 text-sm font-semibold" style={{ color: "var(--color-red)" }}>{apt.totalCost ? `$${Number(apt.totalCost).toFixed(2)}` : "—"}</td>
                         <td className="px-4 py-3">
-                          <button onClick={() => setAssignApt(apt)} className="text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap" style={{ backgroundColor: "rgba(59,130,246,0.12)", color: "#3b82f6" }}>
-                            <UserCheck size={11} className="inline mr-1" />Assign
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => setEditApt(apt)} className="p-1.5 rounded-lg hover:bg-white/5" title="Edit appointment">
+                              <Pencil size={13} style={{ color: "var(--color-muted)" }} />
+                            </button>
+                            <button onClick={() => setAssignApt(apt)} className="text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap" style={{ backgroundColor: "rgba(59,130,246,0.12)", color: "#3b82f6" }}>
+                              <UserCheck size={11} className="inline mr-1" />Assign
+                            </button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── SERVICES TAB ─── */}
+        {tab === "Services" && (
+          <div className="glass rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "var(--color-border)" }}>
+              <h3 className="text-base font-bold uppercase tracking-wide" style={{ fontFamily: "Rajdhani" }}>Services</h3>
+              <button onClick={() => setAddService(true)}
+                className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl font-semibold text-white"
+                style={{ backgroundColor: "var(--color-red)" }}>
+                <Plus size={14} /> Add Service
+              </button>
+            </div>
+            {services.length === 0 ? (
+              <div className="p-12 text-center space-y-3" style={{ color: "var(--color-muted)" }}>
+                <p>No services yet.</p>
+                <button onClick={() => fetch("/api/services/seed", { method: "POST" }).then(() => window.location.reload())}
+                  className="text-sm px-4 py-2 rounded-lg font-medium" style={{ backgroundColor: "rgba(224,32,32,0.12)", color: "var(--color-red)" }}>
+                  Seed Default Services
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                      {["#", "Name", "Category", "Price", "Duration", "Status", "Actions"].map((h) => (
+                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--color-muted)" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {services.map((s, i) => (
+                      <motion.tr key={s.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
+                        style={{ borderBottom: "1px solid var(--color-border)", opacity: s.isActive ? 1 : 0.5 }}>
+                        <td className="px-4 py-3 text-sm font-mono" style={{ color: "var(--color-muted)" }}>#{s.id}</td>
+                        <td className="px-4 py-3">
+                          <div className="text-sm font-medium" style={{ color: "var(--color-primary)" }}>{s.name}</div>
+                          {s.description && <div className="text-xs mt-0.5 max-w-xs truncate" style={{ color: "var(--color-muted)" }}>{s.description}</div>}
+                        </td>
+                        <td className="px-4 py-3 text-sm" style={{ color: "var(--color-secondary)" }}>
+                          <span className="flex items-center gap-1"><Tag size={11} />{s.category}</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-bold" style={{ color: "var(--color-red)" }}>${Number(s.basePrice).toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm" style={{ color: "var(--color-secondary)" }}>
+                          <span className="flex items-center gap-1"><Timer size={11} />{s.durationMinutes} min</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${s.isActive ? "text-green-400 bg-green-400/10" : "text-red-400 bg-red-400/10"}`}>
+                            {s.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => setEditService(s)} className="p-1.5 rounded hover:bg-white/5" title="Edit">
+                              <Pencil size={13} style={{ color: "var(--color-muted)" }} />
+                            </button>
+                            <button onClick={() => deleteService(s)} className="p-1.5 rounded hover:bg-white/5" title="Delete">
+                              <Trash2 size={13} style={{ color: "#ef4444" }} />
+                            </button>
+                          </div>
                         </td>
                       </motion.tr>
                     ))}
@@ -723,6 +1019,9 @@ export default function AdminPage() {
         {editPayment && <PaymentModal payment={editPayment} onClose={() => setEditPayment(null)} />}
         {addCustomer && <CustomerModal customer={null} onClose={() => setAddCustomer(false)} />}
         {createAdmin && <CreateAdminModal onClose={() => setCreateAdmin(false)} />}
+        {addService  && <ServiceModal service={null} onClose={() => setAddService(false)} />}
+        {editService && <ServiceModal service={editService} onClose={() => setEditService(null)} />}
+        {editApt     && <EditAppointmentModal apt={editApt} services={services} onClose={() => setEditApt(null)} />}
       </AnimatePresence>
     </DashboardLayout>
   );

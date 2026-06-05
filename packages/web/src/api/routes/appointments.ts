@@ -327,12 +327,56 @@ export const appointmentsRouter = new Hono<{ Variables: HonoVariables }>()
     return c.json(updated, 200);
   })
 
-  // Cancel appointment (customer only)
+  // Admin: full update of any appointment (status, date, service, price, notes, etc.)
+  .patch("/:id/admin-update", requireAuth, async (c) => {
+    const user = c.get("user")!;
+    const role = await getDbRole(user.id);
+    if (role !== "admin") return c.json({ message: "Forbidden" }, 403);
+    const id = parseInt(c.req.param("id"));
+    const body = await c.req.json();
+    const allowed = [
+      "status", "scheduledAt", "serviceId", "serviceType", "vehicleId",
+      "totalCost", "bookingFee", "notes", "mechanicNotes", "customerAddress",
+    ] as const;
+    const updates: Record<string, any> = { updatedAt: new Date() };
+    for (const key of allowed) {
+      if (body[key] !== undefined) {
+        if (key === "scheduledAt") updates[key] = new Date(body[key]);
+        else if (key === "totalCost" || key === "bookingFee") updates[key] = parseFloat(body[key]);
+        else if (key === "serviceId" || key === "vehicleId") updates[key] = body[key] ? parseInt(body[key]) : null;
+        else updates[key] = body[key];
+      }
+    }
+    if (updates.status === "completed") updates.completedAt = new Date();
+    const [updated] = await db.update(schema.appointments).set(updates).where(eq(schema.appointments.id, id)).returning();
+    if (!updated) return c.json({ message: "Not found" }, 404);
+    return c.json(updated, 200);
+  })
+
+  // Admin: hard-delete appointment
+  .delete("/:id/admin-delete", requireAuth, async (c) => {
+    const user = c.get("user")!;
+    const role = await getDbRole(user.id);
+    if (role !== "admin") return c.json({ message: "Forbidden" }, 403);
+    const id = parseInt(c.req.param("id"));
+    await db.delete(schema.appointments).where(eq(schema.appointments.id, id));
+    return c.json({ success: true }, 200);
+  })
+
+  // Cancel appointment (customer only, or admin can use admin-delete)
   .delete("/:id", requireAuth, async (c) => {
     const user = c.get("user")!;
     const id = parseInt(c.req.param("id"));
+    const role = await getDbRole(user.id);
     const [appt] = await db.select().from(schema.appointments).where(eq(schema.appointments.id, id));
-    if (!appt || appt.customerId !== user.id) return c.json({ message: "Not found" }, 404);
+    if (!appt) return c.json({ message: "Not found" }, 404);
+    // Admin can cancel any appointment
+    if (role === "admin") {
+      const [updated] = await db.update(schema.appointments).set({ status: "cancelled", updatedAt: new Date() })
+        .where(eq(schema.appointments.id, id)).returning();
+      return c.json(updated, 200);
+    }
+    if (appt.customerId !== user.id) return c.json({ message: "Not found" }, 404);
     if (appt.status === "completed" || appt.status === "in-progress") {
       return c.json({ message: "Cannot cancel an in-progress or completed appointment" }, 400);
     }
