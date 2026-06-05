@@ -1,19 +1,15 @@
-FROM oven/bun:1 AS base
+FROM oven/bun:1
 WORKDIR /app
 
-# Copy root package files
-COPY package.json bun.lock* ./
-COPY packages/web/package.json ./packages/web/
+# Copy everything
+COPY . .
 
-# Install dependencies
-RUN cd packages/web && bun install --frozen-lockfile
+# Install deps for web package
+RUN cd packages/web && bun install
 
-# Copy source
-COPY packages/web ./packages/web
-
-# Expose port
+# Set port
 ENV PORT=10000
 EXPOSE 10000
 
-# Start the server
-CMD ["bun", "packages/web/src/server.ts"]
+# Start server
+CMD ["bun", "run", "packages/web/src/server.ts"]
