@@ -65,11 +65,25 @@ export const appointments = sqliteTable("appointments", {
   scheduledAt: integer("scheduled_at", { mode: "timestamp" }).notNull(),
   completedAt: integer("completed_at", { mode: "timestamp" }),
   notes: text("notes"),
+  mechanicNotes: text("mechanic_notes"),
   customerAddress: text("customer_address"),
   totalCost: real("total_cost"),
   bookingFee: real("booking_fee").default(25),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+// Parts used in an appointment
+export const appointmentParts = sqliteTable("appointment_parts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  appointmentId: integer("appointment_id").notNull().references(() => appointments.id),
+  name: text("name").notNull(),
+  partNumber: text("part_number"),
+  quantity: integer("quantity").notNull().default(1),
+  unitCost: real("unit_cost").notNull(),
+  totalCost: real("total_cost").notNull(),
+  supplier: text("supplier"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
 // Payments
@@ -82,6 +96,7 @@ export const payments = sqliteTable("payments", {
   status: text("status", { enum: ["pending", "paid", "failed", "refunded"] }).notNull().default("pending"),
   transactionId: text("transaction_id"),
   type: text("type", { enum: ["booking_fee", "deposit", "full", "invoice"] }).notNull().default("full"),
+  notes: text("notes"),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
@@ -135,7 +150,5 @@ export const notifications = sqliteTable("notifications", {
   isRead: integer("is_read", { mode: "boolean" }).default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
-
-
 
 export * from "./auth-schema";

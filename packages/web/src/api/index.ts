@@ -5,10 +5,12 @@ import { usersRouter } from "./routes/users";
 import { vehiclesRouter } from "./routes/vehicles";
 import { servicesRouter } from "./routes/services";
 import { appointmentsRouter } from "./routes/appointments";
-import { mechanicsRouter } from "./routes/mechanics";
+import { mechanicsRouter, mechanicSelfRouter } from "./routes/mechanics";
 import { notificationsRouter } from "./routes/notifications";
 import { remindersRouter } from "./routes/reminders";
 import { adminRouter } from "./routes/admin";
+import { partsRouter } from "./routes/parts";
+import { paymentsRouter } from "./routes/payments";
 
 const app = new Hono()
   .use(cors({ origin: (origin) => origin ?? "*", credentials: true, exposeHeaders: ["set-auth-token"] }))
@@ -20,9 +22,12 @@ const app = new Hono()
   .route("/services", servicesRouter)
   .route("/appointments", appointmentsRouter)
   .route("/mechanics", mechanicsRouter)
+  .route("/mechanics", mechanicSelfRouter)
   .route("/notifications", notificationsRouter)
   .route("/reminders", remindersRouter)
-  .route("/admin", adminRouter);
+  .route("/admin", adminRouter)
+  .route("/parts", partsRouter)
+  .route("/payments", paymentsRouter);
 
 export type AppType = typeof app;
 export default app;

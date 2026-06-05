@@ -12,6 +12,8 @@ import BookPage from "./pages/book";
 import NotificationsPage from "./pages/notifications";
 import ProfilePage from "./pages/profile";
 import AdminPage from "./pages/admin";
+import PaymentsPage from "./pages/payments";
+import MechanicPage from "./pages/mechanic";
 
 function App() {
   return (
@@ -23,14 +25,16 @@ function App() {
         <Route path="/dashboard" component={DashboardPage} />
         <Route path="/dashboard/vehicles" component={VehiclesPage} />
         <Route path="/dashboard/appointments" component={AppointmentsPage} />
+        <Route path="/dashboard/appointments/:id" component={AppointmentsPage} />
+        <Route path="/dashboard/payments" component={PaymentsPage} />
         <Route path="/dashboard/notifications" component={NotificationsPage} />
         <Route path="/book" component={BookPage} />
         <Route path="/profile" component={ProfilePage} />
         <Route path="/admin" component={AdminPage} />
+        <Route path="/mechanic" component={MechanicPage} />
       </Switch>
       {/* Do not remove — off by default, activated by parent iframe via postMessage */}
       {import.meta.env.DEV && <AgentFeedback />}
-
     </Provider>
   );
 }
