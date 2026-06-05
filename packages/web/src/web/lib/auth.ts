@@ -6,8 +6,10 @@ export function getToken(): string {
   return localStorage.getItem(TOKEN_KEY) ?? "";
 }
 
+const AUTH_BASE = import.meta.env.VITE_API_URL ?? window.location.origin;
+
 export const authClient = createAuthClient({
-  baseURL: window.location.origin,
+  baseURL: AUTH_BASE,
   basePath: "/api/auth",
   fetchOptions: {
     auth: {
