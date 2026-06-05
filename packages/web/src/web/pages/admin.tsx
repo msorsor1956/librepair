@@ -8,7 +8,7 @@ import {
   Users, Calendar, Wrench, TrendingUp, Clock, CheckCircle,
   XCircle, AlertCircle, CreditCard, DollarSign, UserCheck,
   Car, Plus, Pencil, Trash2, X, ShieldCheck, ChevronRight, Phone, MapPin,
-  Tag, Timer, ToggleLeft, ToggleRight,
+  Tag, Timer, ToggleLeft, ToggleRight, ShoppingCart, Package,
 } from "lucide-react";
 
 /* ── helpers ── */
@@ -45,6 +45,207 @@ function StatCard({ icon, label, value, color, delay }: { icon: React.ReactNode;
         <div className="text-sm mt-0.5" style={{ color: "var(--color-muted)" }}>{label}</div>
       </div>
     </motion.div>
+  );
+}
+
+/* ── Sell Modal ── record parts + payment + complete ── */
+function SellModal({ apt, onClose }: { apt: any; onClose: () => void }) {
+  const qc = useQueryClient();
+  type LineItem = { id: number; name: string; quantity: number; unitCost: string };
+  const newItem = (): LineItem => ({ id: Date.now(), name: "", quantity: 1, unitCost: "" });
+  const [items, setItems] = useState<LineItem[]>([newItem()]);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "zelle" | "cashapp" | "stripe" | "paypal">("cash");
+  const [markCompleted, setMarkCompleted] = useState(true);
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const subtotal = items.reduce((sum, it) => sum + (it.quantity * (parseFloat(it.unitCost) || 0)), 0);
+  const tax = parseFloat((subtotal * 0.08).toFixed(2));
+  const total = parseFloat((subtotal + tax).toFixed(2));
+
+  function updateItem(id: number, field: keyof LineItem, val: string | number) {
+    setItems((prev) => prev.map((it) => it.id === id ? { ...it, [field]: val } : it));
+  }
+  function removeItem(id: number) { setItems((prev) => prev.filter((it) => it.id !== id)); }
+  function addItem() { setItems((prev) => [...prev, newItem()]); }
+
+  async function sell() {
+    if (items.some((it) => !it.name.trim())) { setError("All items need a name."); return; }
+    if (total <= 0) { setError("Total must be greater than $0."); return; }
+    setSaving(true); setError("");
+    const r = await fetch(`/api/appointments/${apt.id}/sell`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: items.map((it) => ({
+          name: it.name,
+          quantity: it.quantity,
+          unitCost: parseFloat(it.unitCost) || 0,
+        })),
+        paymentMethod,
+        totalCost: total,
+        notes: notes || null,
+        markCompleted,
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) { setError(data.message ?? "Error saving sale."); setSaving(false); return; }
+    qc.invalidateQueries({ queryKey: ["admin-appointments"] });
+    qc.invalidateQueries({ queryKey: ["admin-payments"] });
+    onClose();
+  }
+
+  const inputStyle = { background: "var(--color-bg)", border: "1px solid var(--color-border)", color: "var(--color-primary)" };
+  const labelStyle = { color: "var(--color-muted)" };
+  const methods = [
+    { value: "cash", label: "Cash" },
+    { value: "zelle", label: "Zelle" },
+    { value: "cashapp", label: "Cash App" },
+    { value: "stripe", label: "Card (Stripe)" },
+    { value: "paypal", label: "PayPal" },
+  ] as const;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-xl rounded-2xl p-6 max-h-[92vh] overflow-y-auto"
+        style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+
+        {/* Header */}
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-bold flex items-center gap-2" style={{ fontFamily: "Rajdhani" }}>
+              <ShoppingCart size={18} style={{ color: "var(--color-red)" }} />
+              Sell — Appointment #{apt.id}
+            </h2>
+            <p className="text-xs mt-0.5" style={{ color: "var(--color-muted)" }}>
+              {apt.customerName ?? "Customer"} · {apt.serviceName ?? apt.serviceType ?? "Service"}
+            </p>
+          </div>
+          <button onClick={onClose}><X size={18} style={{ color: "var(--color-muted)" }} /></button>
+        </div>
+
+        {/* Line items */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-semibold uppercase tracking-wide" style={labelStyle}>Items / Parts / Labor</label>
+            <button onClick={addItem} className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium"
+              style={{ backgroundColor: "rgba(224,32,32,0.12)", color: "var(--color-red)" }}>
+              <Plus size={11} /> Add Item
+            </button>
+          </div>
+
+          {/* Header row */}
+          <div className="grid grid-cols-12 gap-2 mb-1 px-1">
+            <span className="col-span-5 text-xs" style={labelStyle}>Description</span>
+            <span className="col-span-2 text-xs text-center" style={labelStyle}>Qty</span>
+            <span className="col-span-3 text-xs" style={labelStyle}>Unit ($)</span>
+            <span className="col-span-2 text-xs text-right" style={labelStyle}>Total</span>
+          </div>
+
+          <div className="space-y-2">
+            {items.map((it) => (
+              <div key={it.id} className="grid grid-cols-12 gap-2 items-center">
+                <input
+                  className="col-span-5 px-2.5 py-2 rounded-lg text-sm focus:outline-none"
+                  style={inputStyle}
+                  placeholder="e.g. Oil Change, Labor…"
+                  value={it.name}
+                  onChange={(e) => updateItem(it.id, "name", e.target.value)}
+                />
+                <input
+                  type="number" min="1"
+                  className="col-span-2 px-2.5 py-2 rounded-lg text-sm text-center focus:outline-none"
+                  style={inputStyle}
+                  value={it.quantity}
+                  onChange={(e) => updateItem(it.id, "quantity", parseInt(e.target.value) || 1)}
+                />
+                <input
+                  type="number" min="0" step="0.01"
+                  className="col-span-3 px-2.5 py-2 rounded-lg text-sm focus:outline-none"
+                  style={inputStyle}
+                  placeholder="0.00"
+                  value={it.unitCost}
+                  onChange={(e) => updateItem(it.id, "unitCost", e.target.value)}
+                />
+                <div className="col-span-2 flex items-center justify-end gap-1">
+                  <span className="text-sm font-medium" style={{ color: "var(--color-secondary)" }}>
+                    ${(it.quantity * (parseFloat(it.unitCost) || 0)).toFixed(2)}
+                  </span>
+                  {items.length > 1 && (
+                    <button onClick={() => removeItem(it.id)} className="p-0.5 ml-1">
+                      <X size={11} style={{ color: "#ef4444" }} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Totals */}
+        <div className="rounded-xl p-4 mb-4 space-y-2" style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)" }}>
+          <div className="flex justify-between text-sm" style={{ color: "var(--color-secondary)" }}>
+            <span>Subtotal</span><span>${subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-sm" style={{ color: "var(--color-muted)" }}>
+            <span>Tax (8%)</span><span>${tax.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between font-bold text-base pt-2" style={{ borderTop: "1px solid var(--color-border)", color: "var(--color-primary)" }}>
+            <span>Total</span><span style={{ color: "var(--color-red)" }}>${total.toFixed(2)}</span>
+          </div>
+        </div>
+
+        {/* Payment method */}
+        <div className="mb-4">
+          <label className="text-xs font-semibold uppercase tracking-wide block mb-2" style={labelStyle}>Payment Method</label>
+          <div className="flex flex-wrap gap-2">
+            {methods.map((m) => (
+              <button key={m.value} onClick={() => setPaymentMethod(m.value as any)}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                style={{
+                  backgroundColor: paymentMethod === m.value ? "var(--color-red)" : "var(--color-bg)",
+                  color: paymentMethod === m.value ? "#fff" : "var(--color-secondary)",
+                  border: `1px solid ${paymentMethod === m.value ? "var(--color-red)" : "var(--color-border)"}`,
+                }}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div className="mb-4 flex flex-col gap-1">
+          <label className="text-xs font-semibold uppercase tracking-wide" style={labelStyle}>Notes (optional)</label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+            className="px-3 py-2.5 rounded-lg text-sm resize-none focus:outline-none" style={inputStyle}
+            placeholder="Invoice notes, payment reference…" />
+        </div>
+
+        {/* Mark completed toggle */}
+        <div className="flex items-center gap-3 mb-5 p-3 rounded-xl" style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)" }}>
+          <button onClick={() => setMarkCompleted((v) => !v)} className="flex items-center gap-2">
+            {markCompleted
+              ? <ToggleRight size={22} style={{ color: "var(--color-red)" }} />
+              : <ToggleLeft size={22} style={{ color: "var(--color-muted)" }} />}
+            <span className="text-sm font-medium" style={{ color: "var(--color-secondary)" }}>Mark appointment as completed</span>
+          </button>
+        </div>
+
+        {error && <p className="text-xs mb-3" style={{ color: "#ef4444" }}>{error}</p>}
+
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-lg text-sm"
+            style={{ border: "1px solid var(--color-border)", color: "var(--color-muted)" }}>Cancel</button>
+          <button onClick={sell} disabled={saving}
+            className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50"
+            style={{ backgroundColor: "var(--color-red)" }}>
+            {saving ? "Processing…" : <><ShoppingCart size={14} /> Complete Sale ${total.toFixed(2)}</>}
+          </button>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
@@ -659,6 +860,7 @@ export default function AdminPage() {
   const [editService, setEditService]   = useState<any | null>(null);
   const [addService, setAddService]     = useState(false);
   const [editApt, setEditApt]           = useState<any | null>(null);
+  const [sellApt, setSellApt]           = useState<any | null>(null);
 
   const { data: session } = useQuery({ queryKey: ["session"], queryFn: () => authClient.getSession() });
   const user = (session as any)?.data?.user;
@@ -723,8 +925,7 @@ export default function AdminPage() {
   const outstanding = payments.filter((p) => p.status === "pending").reduce((s, p) => s + Number(p.amount ?? 0), 0);
 
   const recentApts = [...appointments]
-    .sort((a, b) => new Date(b.createdAt ?? b.scheduledAt).getTime() - new Date(a.createdAt ?? a.scheduledAt).getTime())
-    .slice(0, 15);
+    .sort((a, b) => new Date(b.createdAt ?? b.scheduledAt).getTime() - new Date(a.createdAt ?? a.scheduledAt).getTime());
 
   return (
     <DashboardLayout title="Admin">
@@ -829,30 +1030,47 @@ export default function AdminPage() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
-                      {["#", "Customer", "Date", "Type", "Status", "Mechanic", "Total", "Actions"].map((h) => (
+                      {["#", "Customer", "Vehicle", "Date", "Service", "Status", "Mechanic", "Total", "Actions"].map((h) => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--color-muted)" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {recentApts.map((apt, i) => (
-                      <motion.tr key={apt.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 + i * 0.03 }}
+                      <motion.tr key={apt.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: Math.min(i * 0.03, 0.5) }}
                         style={{ borderBottom: "1px solid var(--color-border)" }}>
                         <td className="px-4 py-3 text-sm font-mono" style={{ color: "var(--color-muted)" }}>#{apt.id}</td>
-                        <td className="px-4 py-3 text-sm" style={{ color: "var(--color-secondary)" }}>{apt.customerName ?? "—"}</td>
+                        <td className="px-4 py-3">
+                          <div className="text-sm font-medium" style={{ color: "var(--color-primary)" }}>{apt.customerName ?? "—"}</div>
+                          {apt.customerPhone && <div className="text-xs" style={{ color: "var(--color-muted)" }}>{apt.customerPhone}</div>}
+                        </td>
+                        <td className="px-4 py-3 text-sm" style={{ color: "var(--color-secondary)" }}>
+                          {apt.vehicleMake ? `${apt.vehicleYear ?? ""} ${apt.vehicleMake} ${apt.vehicleModel ?? ""}`.trim() : <span style={{ color: "var(--color-muted)" }}>—</span>}
+                        </td>
                         <td className="px-4 py-3 text-sm" style={{ color: "var(--color-secondary)" }}>{new Date(apt.scheduledAt ?? apt.createdAt).toLocaleDateString()}</td>
-                        <td className="px-4 py-3 text-sm capitalize" style={{ color: "var(--color-secondary)" }}>{apt.serviceType ?? "—"}</td>
+                        <td className="px-4 py-3 text-sm" style={{ color: "var(--color-secondary)" }}>
+                          <div>{apt.serviceName ?? <span style={{ color: "var(--color-muted)" }}>—</span>}</div>
+                          <div className="text-xs capitalize" style={{ color: "var(--color-muted)" }}>{apt.serviceType}</div>
+                        </td>
                         <td className="px-4 py-3"><AptStatusSelect apt={apt} /></td>
                         <td className="px-4 py-3 text-sm" style={{ color: "var(--color-secondary)" }}>{apt.mechanicName ?? <span style={{ color: "var(--color-muted)" }}>—</span>}</td>
-                        <td className="px-4 py-3 text-sm font-semibold" style={{ color: "var(--color-red)" }}>{apt.totalCost ? `$${Number(apt.totalCost).toFixed(2)}` : "—"}</td>
+                        <td className="px-4 py-3 text-sm font-semibold" style={{ color: apt.totalCost ? "var(--color-red)" : "var(--color-muted)" }}>
+                          {apt.totalCost ? `${Number(apt.totalCost).toFixed(2)}` : "—"}
+                        </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => setEditApt(apt)} className="p-1.5 rounded-lg hover:bg-white/5" title="Edit appointment">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <button onClick={() => setEditApt(apt)} className="p-1.5 rounded-lg hover:bg-white/5" title="Edit">
                               <Pencil size={13} style={{ color: "var(--color-muted)" }} />
                             </button>
-                            <button onClick={() => setAssignApt(apt)} className="text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap" style={{ backgroundColor: "rgba(59,130,246,0.12)", color: "#3b82f6" }}>
-                              <UserCheck size={11} className="inline mr-1" />Assign
+                            <button onClick={() => setAssignApt(apt)} className="text-xs px-2 py-1 rounded-lg font-medium whitespace-nowrap" style={{ backgroundColor: "rgba(59,130,246,0.12)", color: "#3b82f6" }}>
+                              <UserCheck size={10} className="inline mr-0.5" />Assign
                             </button>
+                            {apt.status !== "completed" && apt.status !== "cancelled" && (
+                              <button onClick={() => setSellApt(apt)} className="text-xs px-2 py-1 rounded-lg font-semibold whitespace-nowrap flex items-center gap-1"
+                                style={{ backgroundColor: "rgba(34,197,94,0.12)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)" }}>
+                                <ShoppingCart size={10} />Sell
+                              </button>
+                            )}
                           </div>
                         </td>
                       </motion.tr>
@@ -1022,6 +1240,7 @@ export default function AdminPage() {
         {addService  && <ServiceModal service={null} onClose={() => setAddService(false)} />}
         {editService && <ServiceModal service={editService} onClose={() => setEditService(null)} />}
         {editApt     && <EditAppointmentModal apt={editApt} services={services} onClose={() => setEditApt(null)} />}
+        {sellApt     && <SellModal apt={sellApt} onClose={() => setSellApt(null)} />}
       </AnimatePresence>
     </DashboardLayout>
   );

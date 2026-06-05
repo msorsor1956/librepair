@@ -387,4 +387,59 @@ export const appointmentsRouter = new Hono<{ Variables: HonoVariables }>()
     const [updated] = await db.update(schema.appointments).set({ status: "cancelled", updatedAt: new Date() })
       .where(eq(schema.appointments.id, id)).returning();
     return c.json(updated, 200);
+  })
+
+  // Admin: Sell — record parts, payment, and complete the appointment
+  .post("/:id/sell", requireAuth, async (c) => {
+    const user = c.get("user")!;
+    const role = await getDbRole(user.id);
+    if (role !== "admin") return c.json({ message: "Forbidden" }, 403);
+    const id = parseInt(c.req.param("id"));
+    const body = await c.req.json();
+    // body: { items: [{name, partNumber?, quantity, unitCost, supplier?}], paymentMethod, totalCost, notes?, markCompleted? }
+
+    const [appt] = await db.select().from(schema.appointments).where(eq(schema.appointments.id, id));
+    if (!appt) return c.json({ message: "Appointment not found" }, 404);
+
+    const items: Array<{ name: string; partNumber?: string; quantity: number; unitCost: number; supplier?: string }> = body.items ?? [];
+    const paymentMethod = body.paymentMethod ?? "cash";
+    const totalCost = parseFloat(body.totalCost ?? "0");
+    const markCompleted = body.markCompleted !== false; // default true
+
+    // Insert parts
+    if (items.length > 0) {
+      await db.insert(schema.appointmentParts).values(
+        items.map((it) => ({
+          appointmentId: id,
+          name: it.name,
+          partNumber: it.partNumber ?? null,
+          quantity: it.quantity ?? 1,
+          unitCost: it.unitCost,
+          totalCost: (it.quantity ?? 1) * it.unitCost,
+          supplier: it.supplier ?? null,
+        }))
+      );
+    }
+
+    // Record payment (paid)
+    const [payment] = await db.insert(schema.payments).values({
+      appointmentId: id,
+      customerId: appt.customerId,
+      amount: totalCost,
+      method: paymentMethod,
+      status: "paid",
+      type: "full",
+      notes: body.notes ?? null,
+    }).returning();
+
+    // Update appointment totalCost + optionally mark completed
+    const aptUpdates: Record<string, any> = { totalCost, updatedAt: new Date() };
+    if (markCompleted) {
+      aptUpdates.status = "completed";
+      aptUpdates.completedAt = new Date();
+    }
+    const [updatedApt] = await db.update(schema.appointments).set(aptUpdates)
+      .where(eq(schema.appointments.id, id)).returning();
+
+    return c.json({ appointment: updatedApt, payment }, 200);
   });
