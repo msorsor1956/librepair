@@ -93,7 +93,7 @@ export const paymentsRouter = new Hono<{ Variables: HonoVariables }>()
       .leftJoin(schema.appointments, eq(schema.payments.appointmentId, schema.appointments.id))
       .leftJoin(schema.services, eq(schema.appointments.serviceId, schema.services.id))
       .orderBy(desc(schema.payments.createdAt));
-    return c.json(rows, 200);
+    return c.json({ payments: rows }, 200);
   })
 
   // Record / update payment (admin only)

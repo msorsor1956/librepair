@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { db } from "../database";
 import * as schema from "../database/schema";
 import { eq, desc, and } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { authMiddleware, requireAuth } from "../middleware/auth";
 import type { HonoVariables } from "../types";
 
@@ -129,13 +130,16 @@ export const appointmentsRouter = new Hono<{ Variables: HonoVariables }>()
         bookingFee: schema.appointments.bookingFee,
         createdAt: schema.appointments.createdAt,
         updatedAt: schema.appointments.updatedAt,
+        mechanicName: alias(schema.users, "mechanic_user").name,
       })
       .from(schema.appointments)
       .leftJoin(schema.users, eq(schema.appointments.customerId, schema.users.id))
       .leftJoin(schema.vehicles, eq(schema.appointments.vehicleId, schema.vehicles.id))
       .leftJoin(schema.services, eq(schema.appointments.serviceId, schema.services.id))
+      .leftJoin(schema.mechanics, eq(schema.appointments.mechanicId, schema.mechanics.id))
+      .leftJoin(alias(schema.users, "mechanic_user"), eq(schema.mechanics.userId, alias(schema.users, "mechanic_user").id))
       .orderBy(desc(schema.appointments.scheduledAt));
-    return c.json(rows, 200);
+    return c.json({ appointments: rows }, 200);
   })
 
   // Book appointment
