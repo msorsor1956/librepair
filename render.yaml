@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: librepair-backend
+    runtime: node
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: "npm install -g bun && cd packages/web && bun install"
+    startCommand: "cd packages/web && bun src/server.ts"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        value: libsql://68c85619-e47d-4549-8bb4-05d3986a9cdd-runable.aws-us-east-2.turso.io
+      - key: DATABASE_AUTH_TOKEN
+        value: eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3ODAwNjI4MDEsInAiOnsicnciOnsibnMiOlsiMDE5ZTc0MDItY2IwMS03NWIyLTk5ZTktNGM4MDNjY2NiNjlhIl19fSwicmlkIjoiOTY2MGRjZmMtNzFmOS00MGJjLWI5YTAtOTEwMDZmOTlmM2ExIn0.DiX2gC31Gq8nhSCRk_5LXY7uQLoe5urk8sphHhwVo-rAkn5lVfC5g66g8PjWWNANPp5TADJgeJ-YUX87KVcyBw
+      - key: BETTER_AUTH_SECRET
+        value: 5AGXS6FYX7CP6LQWsLD/jyc6Pd1+ohdTFSGXav9Hweo=
+      - key: BETTER_AUTH_URL
+        value: https://librepair-backend.onrender.com
+      - key: WEBSITE_URL
+        value: https://librepair-sonnietechnologyllc.wasmer.app
+      - key: S3_ENDPOINT
+        value: https://4e93db960a1c13ad600b2eb6eb1147c2.r2.cloudflarestorage.com
+      - key: S3_BUCKET
+        value: 68c85619-e47d-4549-8bb4-05d3986a9cdd
+      - key: S3_ACCESS_KEY_ID
+        value: f7e82b1212914fa78908fc568fe6d4f2
+      - key: S3_SECRET_ACCESS_KEY
+        value: 8a5628f1e1fd8b83fcfa28902d2b004c3ed1f6cb48b6e4dbee9ac3e1550981cb
