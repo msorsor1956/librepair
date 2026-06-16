@@ -1,0 +1,17 @@
+[package]
+entrypoint = "server"
+
+[dependencies]
+"wasmer/static-web-server" = "=1"
+
+[fs]
+"/public" = "./public"
+
+[[command]]
+name = "server"
+module = "wasmer/static-web-server:webserver"
+runner = "https://webc.org/runner/wasi"
+
+[command.annotations.wasi]
+atom = "wasmer/static-web-server:webserver"
+main-args = ["-a", "0.0.0.0", "-p", "3000", "-d", "/public", "--page404", "/public/index.html"]

@@ -9,7 +9,20 @@ export const auth = betterAuth({
   basePath: "/api/auth",
   baseURL: process.env.WEBSITE_URL,
   database: drizzleAdapter(db, { provider: "sqlite" }),
-  emailAndPassword: { enabled: true },
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: false, // set to true once email provider configured
+  },
+  socialProviders: {
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? {
+          google: {
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          },
+        }
+      : {}),
+  },
   secret: process.env.BETTER_AUTH_SECRET,
   trustedOrigins: (request) => {
     const origin = request?.headers.get("origin");
@@ -20,14 +33,17 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
-          // Sync auth user into our custom users table
           try {
-            await db.insert(schema.users).values({
-              id: user.id,
-              name: user.name,
-              email: user.email,
-              role: "customer",
-            }).onConflictDoNothing();
+            await db
+              .insert(schema.users)
+              .values({
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                profilePhoto: user.image ?? null,
+                role: "customer",
+              })
+              .onConflictDoNothing();
           } catch {
             // ignore — row may already exist
           }

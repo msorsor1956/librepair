@@ -15,22 +15,33 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       const token = await getTokenAsync();
-      const inAuthGroup = segments[0] === "(tabs)";
+      // inAuthGroup = user is in any (tabs) group (main app area)
+      const inTabsGroup = segments[0] === "(tabs)";
+      const inCustomerGroup = inTabsGroup && segments[1] === "customer";
 
       if (!token) {
-        // No token — send to sign-in
-        if (inAuthGroup) router.replace("/sign-in");
+        // No token — send to sign-in if in protected area
+        if (inTabsGroup) router.replace("/sign-in");
       } else {
-        // Has token — check session
+        // Has token — verify session
         try {
           const { data } = await authClient.getSession();
           if (!data?.session) {
-            if (inAuthGroup) router.replace("/sign-in");
+            if (inTabsGroup) router.replace("/sign-in");
           } else {
-            if (!inAuthGroup) router.replace("/(tabs)/");
+            // Authenticated: redirect to correct area based on role
+            const role = (data.user as any)?.role;
+            if (!inTabsGroup) {
+              // On sign-in/sign-up screens — redirect to appropriate dashboard
+              if (role === "admin" || role === "mechanic") {
+                router.replace("/(tabs)/");
+              } else {
+                router.replace("/(tabs)/customer/");
+              }
+            }
           }
         } catch {
-          if (inAuthGroup) router.replace("/sign-in");
+          if (inTabsGroup) router.replace("/sign-in");
         }
       }
       setChecking(false);

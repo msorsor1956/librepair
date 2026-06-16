@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { authClient, captureToken } from "../lib/auth";
-import { Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, Mail } from "lucide-react";
 
 export default function SignInPage() {
   const [, navigate] = useLocation();
@@ -21,7 +21,7 @@ export default function SignInPage() {
       {
         onSuccess: (ctx) => {
           captureToken(ctx as any);
-          navigate("/dashboard");
+          navigate("/customer/dashboard");
         },
         onError: (ctx) => {
           setError(ctx.error?.message ?? "Invalid credentials. Please try again.");
@@ -35,25 +35,21 @@ export default function SignInPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-grid relative" style={{ backgroundColor: "var(--color-bg)" }}>
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full opacity-10 pointer-events-none" style={{ background: "radial-gradient(circle, #e02020, transparent 70%)" }} />
-
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
+      <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-md">
         <div className="glass rounded-2xl p-8">
           <div className="mb-8">
-            <Link to="/">
+            <Link to="/welcome">
               <button className="flex items-center gap-2 text-sm mb-6 hover:text-white transition-colors" style={{ color: "var(--color-muted)" }}>
-                <ArrowLeft size={14} /> Back to home
+                <ArrowLeft size={14} /> Back
               </button>
             </Link>
-            <div className="flex justify-center mb-6">
-              <img src="/logo.png" alt="LIBrepair" className="h-10 w-auto" />
+            <div className="flex justify-center mb-5">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: "rgba(224,32,32,0.15)" }}>
+                <Mail size={22} style={{ color: "var(--color-red)" }} />
+              </div>
             </div>
             <h1 className="text-3xl font-bold text-center mb-1" style={{ fontFamily: "Rajdhani" }}>Welcome Back</h1>
-            <p className="text-sm text-center" style={{ color: "var(--color-muted)" }}>Sign in to your LIBrepair account</p>
+            <p className="text-sm text-center" style={{ color: "var(--color-muted)" }}>Sign in with your email address</p>
           </div>
 
           {error && (
@@ -64,7 +60,7 @@ export default function SignInPage() {
 
           <form onSubmit={handleSignIn} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Email</label>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Email Address</label>
               <input
                 type="email"
                 value={email}
@@ -72,17 +68,18 @@ export default function SignInPage() {
                 required
                 placeholder="you@example.com"
                 className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-all"
-                style={{
-                  backgroundColor: "var(--color-surface2)",
-                  border: "1px solid var(--color-border)",
-                  color: "var(--color-white)",
-                }}
+                style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }}
                 onFocus={(e) => (e.target.style.borderColor = "var(--color-red)")}
                 onBlur={(e) => (e.target.style.borderColor = "var(--color-border)")}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Password</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-sm font-medium" style={{ color: "var(--color-silver)" }}>Password</label>
+                <Link to="/forgot-password">
+                  <span className="text-xs hover:underline" style={{ color: "var(--color-red)" }}>Forgot password?</span>
+                </Link>
+              </div>
               <div className="relative">
                 <input
                   type={showPw ? "text" : "password"}
@@ -91,11 +88,7 @@ export default function SignInPage() {
                   required
                   placeholder="••••••••"
                   className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-all pr-11"
-                  style={{
-                    backgroundColor: "var(--color-surface2)",
-                    border: "1px solid var(--color-border)",
-                    color: "var(--color-white)",
-                  }}
+                  style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }}
                   onFocus={(e) => (e.target.style.borderColor = "var(--color-red)")}
                   onBlur={(e) => (e.target.style.borderColor = "var(--color-border)")}
                 />
@@ -107,7 +100,7 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 rounded-lg font-semibold text-white transition-all disabled:opacity-60 red-glow"
+              className="w-full py-3.5 rounded-xl font-semibold text-white transition-all disabled:opacity-60 red-glow"
               style={{ backgroundColor: "var(--color-red)" }}
             >
               {loading ? "Signing in..." : "Sign In"}
@@ -116,9 +109,7 @@ export default function SignInPage() {
 
           <p className="text-sm text-center mt-6" style={{ color: "var(--color-muted)" }}>
             Don't have an account?{" "}
-            <Link to="/sign-up">
-              <span className="font-semibold hover:underline" style={{ color: "var(--color-red)" }}>Sign up</span>
-            </Link>
+            <Link to="/welcome"><span className="font-semibold hover:underline" style={{ color: "var(--color-red)" }}>Create one</span></Link>
           </p>
         </div>
       </motion.div>
