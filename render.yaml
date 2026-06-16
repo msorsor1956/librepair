@@ -5,7 +5,7 @@ services:
     region: oregon
     plan: free
     branch: main
-    buildCommand: "npm install -g bun && cd packages/web && bun install"
+    buildCommand: "npm install -g bun && cd packages/web && bun install && bun run build"
     startCommand: "cd packages/web && bun src/server.ts"
     envVars:
       - key: NODE_ENV
@@ -21,7 +21,7 @@ services:
       - key: BETTER_AUTH_URL
         value: https://librepair-backend.onrender.com
       - key: WEBSITE_URL
-        value: https://librepair-sonnietechnologyllc.wasmer.app
+        value: https://librepair-backend.onrender.com
       - key: S3_ENDPOINT
         value: https://4e93db960a1c13ad600b2eb6eb1147c2.r2.cloudflarestorage.com
       - key: S3_BUCKET
