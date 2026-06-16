@@ -1,166 +1,194 @@
 import { Hono } from "hono";
+import { setCookie } from "hono/cookie";
 import { db } from "../database";
 import { users } from "../database/schema";
-import { user as authUser, account } from "../database/auth-schema";
+import { user as authUser, account, session as authSession } from "../database/auth-schema";
 import { eq } from "drizzle-orm";
 import { auth } from "../auth";
 
-// In-memory OTP store (use Redis in production)
-const otpStore = new Map<string, { otp: string; expiresAt: number; attempts: number; name?: string }>();
+// ---------------------------------------------------------------------------
+// Firebase Admin – verify ID tokens issued after client-side phone sign-in
+// ---------------------------------------------------------------------------
+import * as admin from "firebase-admin";
 
-function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+function getAdminApp(): admin.app.App {
+  if (admin.apps.length > 0) return admin.apps[0]!;
+  return admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID ?? "librepair-77afa",
+      // Service-account key fields – fall back to undefined so the SDK
+      // initialises without SMS capabilities when not configured.
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      // The private key env var uses \n literals – replace them.
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    } as admin.ServiceAccount),
+  });
 }
 
-function maskPhone(phone: string): string {
-  return phone.slice(0, 4) + "****" + phone.slice(-2);
+async function verifyFirebaseIdToken(
+  idToken: string
+): Promise<admin.auth.DecodedIdToken | null> {
+  try {
+    const adminApp = getAdminApp();
+    return await admin.auth(adminApp).verifyIdToken(idToken);
+  } catch (e) {
+    console.error("[firebase-admin] verifyIdToken failed:", e);
+    return null;
+  }
 }
 
-async function sendSMSViaFirebase(phone: string, otp: string): Promise<boolean> {
-  // Firebase Admin SDK does not send SMS directly; SMS is handled client-side via Firebase Auth.
-  // On the server we just store the OTP and validate.
-  // For production: use Twilio/Firebase Functions/AWS SNS here.
-  console.log(`[DEV] OTP for ${maskPhone(phone)}: ${otp}`);
-  return true;
-}
+// ---------------------------------------------------------------------------
+// Helper – create or fetch our user record from a verified phone number
+// ---------------------------------------------------------------------------
+async function upsertPhoneUser(
+  phone: string,
+  firebaseUid: string,
+  displayName?: string
+) {
+  const normalizedPhone = phone.replace(/[\s\-()]/g, "");
+  const existing = await db
+    .select()
+    .from(users)
+    .where(eq(users.phone, normalizedPhone))
+    .limit(1);
 
-export const phoneAuthRouter = new Hono()
-  // Send OTP
-  .post("/send-otp", async (c) => {
-    const body = await c.req.json<{ phone: string; firstName?: string; lastName?: string; mode?: "signin" | "signup" }>();
-    const { phone, firstName, lastName, mode = "signup" } = body;
+  if (existing.length > 0) {
+    return { user: existing[0], action: "signin" as const };
+  }
 
-    if (!phone || !/^\+?[1-9]\d{7,14}$/.test(phone.replace(/[\s\-()]/g, ""))) {
-      return c.json({ error: "Invalid phone number" }, 400);
-    }
+  const name = displayName ?? "LIBrepair Customer";
+  const newId = crypto.randomUUID();
+  const email = `phone_${normalizedPhone.replace("+", "")}@librepair.placeholder`;
 
-    const normalizedPhone = phone.replace(/[\s\-()]/g, "");
-    const existing = otpStore.get(normalizedPhone);
-
-    // Rate limit: 30s cooldown
-    if (existing && existing.expiresAt > Date.now() && Date.now() - (existing.expiresAt - 300000) < 30000) {
-      const wait = Math.ceil((30000 - (Date.now() - (existing.expiresAt - 300000))) / 1000);
-      return c.json({ error: `Please wait ${wait}s before requesting another code` }, 429);
-    }
-
-    const otp = generateOTP();
-    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
-    const name = firstName && lastName ? `${firstName} ${lastName}` : firstName ?? "";
-
-    otpStore.set(normalizedPhone, { otp, expiresAt, attempts: 0, name });
-
-    const sent = await sendSMSViaFirebase(normalizedPhone, otp);
-    if (!sent) {
-      return c.json({ error: "Failed to send SMS. Try again." }, 500);
-    }
-
-    return c.json({ success: true, message: `Verification code sent to ${maskPhone(normalizedPhone)}` }, 200);
-  })
-
-  // Verify OTP
-  .post("/verify-otp", async (c) => {
-    const body = await c.req.json<{ phone: string; otp: string; firstName?: string; lastName?: string }>();
-    const { phone, otp, firstName, lastName } = body;
-
-    if (!phone || !otp) {
-      return c.json({ error: "Phone and OTP are required" }, 400);
-    }
-
-    const normalizedPhone = phone.replace(/[\s\-()]/g, "");
-    const record = otpStore.get(normalizedPhone);
-
-    if (!record) {
-      return c.json({ error: "No verification code found. Please request a new one." }, 400);
-    }
-
-    if (Date.now() > record.expiresAt) {
-      otpStore.delete(normalizedPhone);
-      return c.json({ error: "Verification code expired. Please request a new one." }, 400);
-    }
-
-    if (record.attempts >= 5) {
-      otpStore.delete(normalizedPhone);
-      return c.json({ error: "Too many failed attempts. Please request a new code." }, 429);
-    }
-
-    if (record.otp !== otp.trim()) {
-      record.attempts++;
-      const remaining = 5 - record.attempts;
-      return c.json({ error: `Incorrect code. ${remaining} attempt${remaining !== 1 ? "s" : ""} remaining.` }, 400);
-    }
-
-    // OTP valid — clear it
-    otpStore.delete(normalizedPhone);
-
-    // Check if user exists
-    const existingUser = await db.select().from(users).where(eq(users.phone, normalizedPhone)).limit(1);
-
-    if (existingUser.length > 0) {
-      // Sign in existing user — create session token
-      const u = existingUser[0];
-      return c.json({
-        success: true,
-        action: "signin",
-        user: { id: u.id, name: u.name, phone: u.phone, role: u.role, profilePhoto: u.profilePhoto },
-      }, 200);
-    }
-
-    // New user — create account
-    const name = firstName && lastName
-      ? `${firstName} ${lastName}`
-      : record.name ?? "LIBrepair Customer";
-
-    const newId = crypto.randomUUID();
-    const email = `phone_${normalizedPhone.replace("+", "")}@librepair.placeholder`;
-
-    // Insert into better-auth user table
-    await db.insert(authUser).values({
+  await db
+    .insert(authUser)
+    .values({
       id: newId,
       name,
       email,
-      emailVerified: false,
+      emailVerified: true, // phone-verified ≈ verified
       createdAt: new Date(),
       updatedAt: new Date(),
-    }).onConflictDoNothing();
+    })
+    .onConflictDoNothing();
 
-    // Insert into custom users table
-    await db.insert(users).values({
-      id: newId,
-      name,
-      phone: normalizedPhone,
-      email,
-      role: "customer",
-    }).onConflictDoNothing();
+  await db
+    .insert(users)
+    .values({ id: newId, name, phone: normalizedPhone, email, role: "customer" })
+    .onConflictDoNothing();
 
-    // Insert account record
-    await db.insert(account).values({
+  await db
+    .insert(account)
+    .values({
       id: crypto.randomUUID(),
-      accountId: normalizedPhone,
-      providerId: "phone",
+      accountId: firebaseUid,
+      providerId: "firebase-phone",
       userId: newId,
       createdAt: new Date(),
       updatedAt: new Date(),
-    }).onConflictDoNothing();
+    })
+    .onConflictDoNothing();
+
+  const newUser = await db
+    .select()
+    .from(users)
+    .where(eq(users.phone, normalizedPhone))
+    .limit(1);
+  return { user: newUser[0], action: "signup" as const };
+}
+
+// ---------------------------------------------------------------------------
+// Helper – create a Better Auth session manually
+// ---------------------------------------------------------------------------
+async function createBetterAuthSession(userId: string) {
+  const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+  await db.insert(authSession).values({
+    id: crypto.randomUUID(),
+    userId,
+    token,
+    expiresAt,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ipAddress: null,
+    userAgent: null,
+  }).onConflictDoNothing();
+
+  return { token, expiresAt };
+}
+
+// ---------------------------------------------------------------------------
+// Router
+// ---------------------------------------------------------------------------
+export const phoneAuthRouter = new Hono()
+  // ------------------------------------------------------------------
+  // POST /api/phone-auth/firebase-verify
+  // Called after the client completes Firebase phone sign-in and gets
+  // a Firebase ID token. We verify it server-side and create a session.
+  // ------------------------------------------------------------------
+  .post("/firebase-verify", async (c) => {
+    const body = await c.req.json<{
+      idToken: string;
+      phone: string;
+      firstName?: string;
+      lastName?: string;
+    }>();
+
+    const { idToken, phone, firstName, lastName } = body;
+
+    if (!idToken || !phone) {
+      return c.json({ error: "idToken and phone are required" }, 400);
+    }
+
+    // 1. Verify Firebase token
+    const decoded = await verifyFirebaseIdToken(idToken);
+    if (!decoded) {
+      return c.json({ error: "Invalid or expired Firebase token" }, 401);
+    }
+
+    // 2. Upsert our user
+    const displayName =
+      firstName && lastName
+        ? `${firstName} ${lastName}`
+        : firstName ?? undefined;
+    const { user, action } = await upsertPhoneUser(phone, decoded.uid, displayName);
+
+    // 3. Create Better Auth session
+    const { token, expiresAt } = await createBetterAuthSession(user.id);
+
+    // 4. Set session cookie (same name Better Auth uses)
+    setCookie(c, "better-auth.session_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Lax",
+      expires: expiresAt,
+      path: "/",
+    });
 
     return c.json({
       success: true,
-      action: "signup",
-      user: { id: newId, name, phone: normalizedPhone, role: "customer" },
-    }, 200);
+      action,
+      user: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+        profilePhoto: user.profilePhoto,
+      },
+      sessionToken: token,
+    });
   })
 
-  // Resend OTP
-  .post("/resend-otp", async (c) => {
-    const body = await c.req.json<{ phone: string }>();
-    const { phone } = body;
-    const normalizedPhone = phone.replace(/[\s\-()]/g, "");
-
-    otpStore.delete(normalizedPhone); // clear old
-
-    const otp = generateOTP();
-    const expiresAt = Date.now() + 5 * 60 * 1000;
-    otpStore.set(normalizedPhone, { otp, expiresAt, attempts: 0 });
-
-    await sendSMSViaFirebase(normalizedPhone, otp);
-    return c.json({ success: true, message: `New code sent to ${maskPhone(normalizedPhone)}` }, 200);
-  });
+  // ------------------------------------------------------------------
+  // Kept for backward-compat / dev fallback: returns 410 Gone
+  // ------------------------------------------------------------------
+  .post("/send-otp", (c) =>
+    c.json({ error: "Server OTP deprecated. Use Firebase client-side auth." }, 410)
+  )
+  .post("/verify-otp", (c) =>
+    c.json({ error: "Server OTP deprecated. Use /firebase-verify." }, 410)
+  )
+  .post("/resend-otp", (c) =>
+    c.json({ error: "Server OTP deprecated. Use Firebase client-side auth." }, 410)
+  );

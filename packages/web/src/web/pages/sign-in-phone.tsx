@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Phone, RotateCcw } from "lucide-react";
+import { sendFirebaseOTP, firebaseAuth } from "@/lib/firebase";
+import type { ConfirmationResult } from "firebase/auth";
+import { signOut } from "firebase/auth";
 
 export default function SignInPhonePage() {
   const [, navigate] = useLocation();
@@ -11,14 +14,12 @@ export default function SignInPhonePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
 
   const startCooldown = () => {
     setResendCooldown(30);
     const t = setInterval(() => {
-      setResendCooldown((c) => {
-        if (c <= 1) { clearInterval(t); return 0; }
-        return c - 1;
-      });
+      setResendCooldown((c) => { if (c <= 1) { clearInterval(t); return 0; } return c - 1; });
     }, 1000);
   };
 
@@ -26,17 +27,17 @@ export default function SignInPhonePage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/phone-auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, mode: "signin" }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Failed to send code"); return; }
+      const result = await sendFirebaseOTP(phone, "send-otp-btn");
+      confirmationRef.current = result;
       setStep("otp");
       startCooldown();
-    } catch {
-      setError("Network error. Please try again.");
+    } catch (e: any) {
+      const msg = e?.code === "auth/invalid-phone-number"
+        ? "Invalid phone number. Include country code e.g. +1 555 000 0000"
+        : e?.code === "auth/too-many-requests"
+        ? "Too many attempts. Please wait and try again."
+        : e?.message ?? "Failed to send code. Try again.";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -45,19 +46,34 @@ export default function SignInPhonePage() {
   const verifyOTP = async () => {
     const code = otp.join("");
     if (code.length !== 6) { setError("Enter all 6 digits"); return; }
+    if (!confirmationRef.current) { setError("Session expired. Resend code."); return; }
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/phone-auth/verify-otp", {
+      // Confirm OTP via Firebase
+      const credential = await confirmationRef.current.confirm(code);
+      const idToken = await credential.user.getIdToken();
+
+      // Sign Firebase user out — we manage session via Better Auth cookie
+      await signOut(firebaseAuth);
+
+      // Exchange Firebase token for our session
+      const res = await fetch("/api/phone-auth/firebase-verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, otp: code }),
+        body: JSON.stringify({ idToken, phone }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Verification failed"); return; }
+
       navigate("/customer/dashboard");
-    } catch {
-      setError("Network error. Please try again.");
+    } catch (e: any) {
+      const msg = e?.code === "auth/invalid-verification-code"
+        ? "Incorrect code. Double-check and try again."
+        : e?.code === "auth/code-expired"
+        ? "Code expired. Please resend."
+        : e?.message ?? "Verification failed";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -68,9 +84,7 @@ export default function SignInPhonePage() {
     const next = [...otp];
     next[idx] = val;
     setOtp(next);
-    if (val && idx < 5) {
-      (document.getElementById(`otp-${idx + 1}`) as HTMLInputElement)?.focus();
-    }
+    if (val && idx < 5) (document.getElementById(`otp-${idx + 1}`) as HTMLInputElement)?.focus();
   };
 
   const handleOtpKey = (idx: number, e: React.KeyboardEvent) => {
@@ -81,16 +95,27 @@ export default function SignInPhonePage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-grid" style={{ backgroundColor: "var(--color-bg)" }}>
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full opacity-10 pointer-events-none" style={{ background: "radial-gradient(circle, #e02020, transparent 70%)" }} />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full opacity-10 pointer-events-none"
+        style={{ background: "radial-gradient(circle, #e02020, transparent 70%)" }} />
+
+      {/* Invisible reCAPTCHA anchor */}
+      <div id="recaptcha-container" />
+
       <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-md">
         <div className="glass rounded-2xl p-8">
-          <button onClick={() => step === "otp" ? setStep("phone") : undefined} className="flex items-center gap-2 text-sm mb-6 hover:text-white transition-colors" style={{ color: "var(--color-muted)" }}>
+          <div className="mb-6">
             {step === "otp" ? (
-              <span onClick={() => setStep("phone")} className="cursor-pointer flex items-center gap-2"><ArrowLeft size={14} /> Back</span>
+              <button onClick={() => setStep("phone")} className="flex items-center gap-2 text-sm hover:text-white transition-colors" style={{ color: "var(--color-muted)" }}>
+                <ArrowLeft size={14} /> Back
+              </button>
             ) : (
-              <Link to="/welcome"><span className="flex items-center gap-2"><ArrowLeft size={14} /> Back</span></Link>
+              <Link to="/welcome">
+                <span className="flex items-center gap-2 text-sm hover:text-white transition-colors cursor-pointer" style={{ color: "var(--color-muted)" }}>
+                  <ArrowLeft size={14} /> Back
+                </span>
+              </Link>
             )}
-          </button>
+          </div>
 
           <div className="flex justify-center mb-5">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: "rgba(224,32,32,0.15)" }}>
@@ -102,7 +127,7 @@ export default function SignInPhonePage() {
             {step === "phone" ? (
               <motion.div key="phone" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
                 <h1 className="text-3xl font-bold text-center mb-1" style={{ fontFamily: "Rajdhani" }}>Sign In with Phone</h1>
-                <p className="text-sm text-center mb-8" style={{ color: "var(--color-muted)" }}>We'll send you a verification code via SMS</p>
+                <p className="text-sm text-center mb-8" style={{ color: "var(--color-muted)" }}>We'll send a verification code via SMS</p>
 
                 {error && <div className="mb-4 px-4 py-3 rounded-lg text-sm" style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "#e02020", border: "1px solid rgba(224,32,32,0.2)" }}>{error}</div>}
 
@@ -118,17 +143,32 @@ export default function SignInPhonePage() {
                       style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }}
                       onFocus={(e) => (e.target.style.borderColor = "var(--color-red)")}
                       onBlur={(e) => (e.target.style.borderColor = "var(--color-border)")}
+                      onKeyDown={(e) => e.key === "Enter" && phone && sendOTP()}
                     />
+                    <p className="text-xs mt-1.5" style={{ color: "var(--color-muted)" }}>Include country code · e.g. +1 for US</p>
                   </div>
-                  <button onClick={sendOTP} disabled={loading || !phone} className="w-full py-3.5 rounded-xl font-semibold text-white transition-all disabled:opacity-60 red-glow" style={{ backgroundColor: "var(--color-red)" }}>
+
+                  {/* reCAPTCHA invisible button anchor */}
+                  <button
+                    id="send-otp-btn"
+                    onClick={sendOTP}
+                    disabled={loading || !phone}
+                    className="w-full py-3.5 rounded-xl font-semibold text-white transition-all disabled:opacity-60 red-glow"
+                    style={{ backgroundColor: "var(--color-red)" }}
+                  >
                     {loading ? "Sending..." : "Send Verification Code"}
                   </button>
                 </div>
+
+                <p className="text-sm text-center mt-6" style={{ color: "var(--color-muted)" }}>
+                  Don't have an account?{" "}
+                  <Link to="/sign-up/phone"><span className="hover:underline cursor-pointer" style={{ color: "var(--color-red)" }}>Sign up</span></Link>
+                </p>
               </motion.div>
             ) : (
               <motion.div key="otp" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                 <h1 className="text-3xl font-bold text-center mb-1" style={{ fontFamily: "Rajdhani" }}>Enter Code</h1>
-                <p className="text-sm text-center mb-2" style={{ color: "var(--color-muted)" }}>6-digit code sent to</p>
+                <p className="text-sm text-center mb-1" style={{ color: "var(--color-muted)" }}>6-digit code sent to</p>
                 <p className="text-sm text-center font-medium mb-8" style={{ color: "var(--color-white)" }}>{phone}</p>
 
                 {error && <div className="mb-4 px-4 py-3 rounded-lg text-sm" style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "#e02020", border: "1px solid rgba(224,32,32,0.2)" }}>{error}</div>}
@@ -154,7 +194,12 @@ export default function SignInPhonePage() {
                   ))}
                 </div>
 
-                <button onClick={verifyOTP} disabled={loading || otp.join("").length !== 6} className="w-full py-3.5 rounded-xl font-semibold text-white transition-all disabled:opacity-60 red-glow" style={{ backgroundColor: "var(--color-red)" }}>
+                <button
+                  onClick={verifyOTP}
+                  disabled={loading || otp.join("").length !== 6}
+                  className="w-full py-3.5 rounded-xl font-semibold text-white transition-all disabled:opacity-60 red-glow"
+                  style={{ backgroundColor: "var(--color-red)" }}
+                >
                   {loading ? "Verifying..." : "Verify & Sign In"}
                 </button>
 
@@ -162,12 +207,12 @@ export default function SignInPhonePage() {
                   {resendCooldown > 0 ? (
                     <p className="text-sm" style={{ color: "var(--color-muted)" }}>Resend in {resendCooldown}s</p>
                   ) : (
-                    <button onClick={sendOTP} className="text-sm flex items-center gap-1 mx-auto hover:underline" style={{ color: "var(--color-red)" }}>
+                    <button onClick={sendOTP} disabled={loading} className="text-sm flex items-center gap-1 mx-auto hover:underline" style={{ color: "var(--color-red)" }}>
                       <RotateCcw size={14} /> Resend code
                     </button>
                   )}
                 </div>
-                <p className="text-xs text-center mt-4" style={{ color: "var(--color-muted)" }}>Code expires in 5 minutes · Max 5 attempts</p>
+                <p className="text-xs text-center mt-4" style={{ color: "var(--color-muted)" }}>Powered by Firebase · Code expires in 5 minutes</p>
               </motion.div>
             )}
           </AnimatePresence>

@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Phone, RotateCcw } from "lucide-react";
+import { sendFirebaseOTP, firebaseAuth } from "@/lib/firebase";
+import type { ConfirmationResult } from "firebase/auth";
+import { signOut } from "firebase/auth";
 
 export default function SignUpPhonePage() {
   const [, navigate] = useLocation();
@@ -13,6 +16,7 @@ export default function SignUpPhonePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
 
   const startCooldown = () => {
     setResendCooldown(30);
@@ -22,60 +26,97 @@ export default function SignUpPhonePage() {
   };
 
   const sendOTP = async () => {
-    if (!firstName || !lastName || !phone) { setError("All fields are required"); return; }
-    setLoading(true); setError("");
+    if (!firstName.trim() || !phone.trim()) {
+      setError("First name and phone number are required");
+      return;
+    }
+    setLoading(true);
+    setError("");
     try {
-      const res = await fetch("/api/phone-auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, firstName, lastName, mode: "signup" }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Failed to send code"); return; }
+      const result = await sendFirebaseOTP(phone, "signup-otp-btn");
+      confirmationRef.current = result;
       setStep("otp");
       startCooldown();
-    } catch { setError("Network error. Please try again."); }
-    finally { setLoading(false); }
+    } catch (e: any) {
+      const msg = e?.code === "auth/invalid-phone-number"
+        ? "Invalid phone number. Include country code e.g. +1 555 000 0000"
+        : e?.code === "auth/too-many-requests"
+        ? "Too many attempts. Please wait and try again."
+        : e?.message ?? "Failed to send code. Try again.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const verifyOTP = async () => {
     const code = otp.join("");
     if (code.length !== 6) { setError("Enter all 6 digits"); return; }
-    setLoading(true); setError("");
+    if (!confirmationRef.current) { setError("Session expired. Resend code."); return; }
+    setLoading(true);
+    setError("");
     try {
-      const res = await fetch("/api/phone-auth/verify-otp", {
+      const credential = await confirmationRef.current.confirm(code);
+      const idToken = await credential.user.getIdToken();
+      await signOut(firebaseAuth);
+
+      const res = await fetch("/api/phone-auth/firebase-verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, otp: code, firstName, lastName }),
+        body: JSON.stringify({ idToken, phone, firstName, lastName }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Verification failed"); return; }
+
       navigate("/customer/dashboard");
-    } catch { setError("Network error. Please try again."); }
-    finally { setLoading(false); }
+    } catch (e: any) {
+      const msg = e?.code === "auth/invalid-verification-code"
+        ? "Incorrect code. Double-check and try again."
+        : e?.code === "auth/code-expired"
+        ? "Code expired. Please resend."
+        : e?.message ?? "Verification failed";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOtpChange = (idx: number, val: string) => {
     if (!/^\d?$/.test(val)) return;
-    const next = [...otp]; next[idx] = val; setOtp(next);
-    if (val && idx < 5) (document.getElementById(`otp2-${idx + 1}`) as HTMLInputElement)?.focus();
+    const next = [...otp];
+    next[idx] = val;
+    setOtp(next);
+    if (val && idx < 5) (document.getElementById(`sotp-${idx + 1}`) as HTMLInputElement)?.focus();
   };
 
   const handleOtpKey = (idx: number, e: React.KeyboardEvent) => {
-    if (e.key === "Backspace" && !otp[idx] && idx > 0) (document.getElementById(`otp2-${idx - 1}`) as HTMLInputElement)?.focus();
+    if (e.key === "Backspace" && !otp[idx] && idx > 0) {
+      (document.getElementById(`sotp-${idx - 1}`) as HTMLInputElement)?.focus();
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-grid" style={{ backgroundColor: "var(--color-bg)" }}>
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full opacity-10 pointer-events-none" style={{ background: "radial-gradient(circle, #e02020, transparent 70%)" }} />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full opacity-10 pointer-events-none"
+        style={{ background: "radial-gradient(circle, #e02020, transparent 70%)" }} />
+
+      <div id="recaptcha-container" />
+
       <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-md">
         <div className="glass rounded-2xl p-8">
-          <button onClick={() => step === "otp" ? setStep("form") : undefined} className="flex items-center gap-2 text-sm mb-6 hover:text-white transition-colors" style={{ color: "var(--color-muted)" }}>
-            {step === "otp"
-              ? <span onClick={() => setStep("form")} className="cursor-pointer flex items-center gap-2"><ArrowLeft size={14} /> Back</span>
-              : <Link to="/welcome"><span className="flex items-center gap-2"><ArrowLeft size={14} /> Back</span></Link>
-            }
-          </button>
+          <div className="mb-6">
+            {step === "otp" ? (
+              <button onClick={() => setStep("form")} className="flex items-center gap-2 text-sm hover:text-white transition-colors" style={{ color: "var(--color-muted)" }}>
+                <ArrowLeft size={14} /> Back
+              </button>
+            ) : (
+              <Link to="/welcome">
+                <span className="flex items-center gap-2 text-sm hover:text-white transition-colors cursor-pointer" style={{ color: "var(--color-muted)" }}>
+                  <ArrowLeft size={14} /> Back
+                </span>
+              </Link>
+            )}
+          </div>
 
           <div className="flex justify-center mb-5">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: "rgba(224,32,32,0.15)" }}>
@@ -86,60 +127,120 @@ export default function SignUpPhonePage() {
           <AnimatePresence mode="wait">
             {step === "form" ? (
               <motion.div key="form" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
-                <h1 className="text-3xl font-bold text-center mb-1" style={{ fontFamily: "Rajdhani" }}>Register with Phone</h1>
-                <p className="text-sm text-center mb-8" style={{ color: "var(--color-muted)" }}>We'll verify your number via SMS</p>
+                <h1 className="text-3xl font-bold text-center mb-1" style={{ fontFamily: "Rajdhani" }}>Create Account</h1>
+                <p className="text-sm text-center mb-8" style={{ color: "var(--color-muted)" }}>Sign up with your phone number</p>
 
                 {error && <div className="mb-4 px-4 py-3 rounded-lg text-sm" style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "#e02020", border: "1px solid rgba(224,32,32,0.2)" }}>{error}</div>}
 
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>First Name</label>
-                      <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="John" className="w-full px-4 py-3 rounded-lg text-sm outline-none" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }} onFocus={(e) => (e.target.style.borderColor = "var(--color-red)")} onBlur={(e) => (e.target.style.borderColor = "var(--color-border)")} />
+                      <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>First Name *</label>
+                      <input
+                        type="text"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="John"
+                        className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-all"
+                        style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }}
+                        onFocus={(e) => (e.target.style.borderColor = "var(--color-red)")}
+                        onBlur={(e) => (e.target.style.borderColor = "var(--color-border)")}
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Last Name</label>
-                      <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Smith" className="w-full px-4 py-3 rounded-lg text-sm outline-none" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }} onFocus={(e) => (e.target.style.borderColor = "var(--color-red)")} onBlur={(e) => (e.target.style.borderColor = "var(--color-border)")} />
+                      <input
+                        type="text"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Smith"
+                        className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-all"
+                        style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }}
+                        onFocus={(e) => (e.target.style.borderColor = "var(--color-red)")}
+                        onBlur={(e) => (e.target.style.borderColor = "var(--color-border)")}
+                      />
                     </div>
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Mobile Phone Number</label>
-                    <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 (555) 000-0000" className="w-full px-4 py-3 rounded-lg text-sm outline-none" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }} onFocus={(e) => (e.target.style.borderColor = "var(--color-red)")} onBlur={(e) => (e.target.style.borderColor = "var(--color-border)")} />
+                    <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Mobile Phone Number *</label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+1 (555) 000-0000"
+                      className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-all"
+                      style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }}
+                      onFocus={(e) => (e.target.style.borderColor = "var(--color-red)")}
+                      onBlur={(e) => (e.target.style.borderColor = "var(--color-border)")}
+                    />
+                    <p className="text-xs mt-1.5" style={{ color: "var(--color-muted)" }}>Include country code · e.g. +1 for US</p>
                   </div>
-                  <button onClick={sendOTP} disabled={loading} className="w-full py-3.5 rounded-xl font-semibold text-white transition-all disabled:opacity-60 red-glow" style={{ backgroundColor: "var(--color-red)" }}>
+
+                  <button
+                    id="signup-otp-btn"
+                    onClick={sendOTP}
+                    disabled={loading || !firstName || !phone}
+                    className="w-full py-3.5 rounded-xl font-semibold text-white transition-all disabled:opacity-60 red-glow"
+                    style={{ backgroundColor: "var(--color-red)" }}
+                  >
                     {loading ? "Sending..." : "Send Verification Code"}
                   </button>
                 </div>
+
+                <p className="text-sm text-center mt-6" style={{ color: "var(--color-muted)" }}>
+                  Already have an account?{" "}
+                  <Link to="/sign-in"><span className="hover:underline cursor-pointer" style={{ color: "var(--color-red)" }}>Sign in</span></Link>
+                </p>
               </motion.div>
             ) : (
               <motion.div key="otp" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                <h1 className="text-3xl font-bold text-center mb-1" style={{ fontFamily: "Rajdhani" }}>Verify Your Number</h1>
-                <p className="text-sm text-center mb-2" style={{ color: "var(--color-muted)" }}>6-digit code sent to</p>
+                <h1 className="text-3xl font-bold text-center mb-1" style={{ fontFamily: "Rajdhani" }}>Verify Phone</h1>
+                <p className="text-sm text-center mb-1" style={{ color: "var(--color-muted)" }}>6-digit code sent to</p>
                 <p className="text-sm text-center font-medium mb-8" style={{ color: "var(--color-white)" }}>{phone}</p>
 
                 {error && <div className="mb-4 px-4 py-3 rounded-lg text-sm" style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "#e02020", border: "1px solid rgba(224,32,32,0.2)" }}>{error}</div>}
 
                 <div className="flex gap-2 justify-center mb-6">
                   {otp.map((digit, i) => (
-                    <input key={i} id={`otp2-${i}`} type="text" inputMode="numeric" maxLength={1} value={digit}
-                      onChange={(e) => handleOtpChange(i, e.target.value)} onKeyDown={(e) => handleOtpKey(i, e)}
+                    <input
+                      key={i}
+                      id={`sotp-${i}`}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleOtpChange(i, e.target.value)}
+                      onKeyDown={(e) => handleOtpKey(i, e)}
                       className="w-12 h-14 text-center text-xl font-bold rounded-lg outline-none transition-all"
-                      style={{ backgroundColor: "var(--color-surface2)", border: digit ? "2px solid var(--color-red)" : "1px solid var(--color-border)", color: "var(--color-white)" }}
+                      style={{
+                        backgroundColor: "var(--color-surface2)",
+                        border: digit ? "2px solid var(--color-red)" : "1px solid var(--color-border)",
+                        color: "var(--color-white)",
+                      }}
                     />
                   ))}
                 </div>
 
-                <button onClick={verifyOTP} disabled={loading || otp.join("").length !== 6} className="w-full py-3.5 rounded-xl font-semibold text-white transition-all disabled:opacity-60 red-glow" style={{ backgroundColor: "var(--color-red)" }}>
-                  {loading ? "Creating account..." : "Verify & Create Account"}
+                <button
+                  onClick={verifyOTP}
+                  disabled={loading || otp.join("").length !== 6}
+                  className="w-full py-3.5 rounded-xl font-semibold text-white transition-all disabled:opacity-60 red-glow"
+                  style={{ backgroundColor: "var(--color-red)" }}
+                >
+                  {loading ? "Verifying..." : "Verify & Create Account"}
                 </button>
 
                 <div className="text-center mt-4">
-                  {resendCooldown > 0
-                    ? <p className="text-sm" style={{ color: "var(--color-muted)" }}>Resend in {resendCooldown}s</p>
-                    : <button onClick={sendOTP} className="text-sm flex items-center gap-1 mx-auto hover:underline" style={{ color: "var(--color-red)" }}><RotateCcw size={14} /> Resend code</button>
-                  }
+                  {resendCooldown > 0 ? (
+                    <p className="text-sm" style={{ color: "var(--color-muted)" }}>Resend in {resendCooldown}s</p>
+                  ) : (
+                    <button onClick={sendOTP} disabled={loading} className="text-sm flex items-center gap-1 mx-auto hover:underline" style={{ color: "var(--color-red)" }}>
+                      <RotateCcw size={14} /> Resend code
+                    </button>
+                  )}
                 </div>
-                <p className="text-xs text-center mt-4" style={{ color: "var(--color-muted)" }}>Code expires in 5 minutes · Max 5 attempts</p>
+                <p className="text-xs text-center mt-4" style={{ color: "var(--color-muted)" }}>Powered by Firebase · Code expires in 5 minutes</p>
               </motion.div>
             )}
           </AnimatePresence>
