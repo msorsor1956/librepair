@@ -18,7 +18,9 @@
   },
   "dependencies": {
     "@better-auth/expo": "1.4.22",
+    "@better-auth/utils": "^0.4.2",
     "@libsql/client": "^0.17.2",
+    "@noble/hashes": "^2.2.0",
     "@radix-ui/react-slot": "^1.2.4",
     "@runablehq/website-runtime": "^0.10.0",
     "@tanstack/react-query": "^5.100.6",
