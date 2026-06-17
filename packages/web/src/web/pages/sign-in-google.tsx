@@ -42,7 +42,7 @@ export default function SignInGooglePage() {
     <div className="min-h-screen flex items-center justify-center px-4 bg-grid" style={{ backgroundColor: "var(--color-bg)" }}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center">
         <div className="glass rounded-2xl p-8">
-          <Link to="/welcome">
+          <Link to="/">
             <button className="flex items-center gap-2 text-sm mb-6 hover:text-white transition-colors" style={{ color: "var(--color-muted)" }}>
               <ArrowLeft size={14} /> Back
             </button>

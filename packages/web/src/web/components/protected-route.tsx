@@ -14,6 +14,6 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (!session) return <Redirect to="/sign-in" />;
+  if (!session) return <Redirect to="/" />;
   return <>{children}</>;
 }

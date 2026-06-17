@@ -1,6 +1,6 @@
 [package]
 name = "sonnietechnologyllc/librepair"
-version = "0.1.23"
+version = "0.1.24"
 description = "LIBrepair — On-Demand Auto Repair Platform"
 entrypoint = "server"
 

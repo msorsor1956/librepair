@@ -117,7 +117,7 @@ export default function SignUpPhonePage() {
                 <ArrowLeft size={14} /> Back
               </button>
             ) : (
-              <Link to="/welcome">
+              <Link to="/">
                 <span className="flex items-center gap-2 text-sm hover:text-white transition-colors cursor-pointer" style={{ color: "var(--color-muted)" }}>
                   <ArrowLeft size={14} /> Back
                 </span>

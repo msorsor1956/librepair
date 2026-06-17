@@ -25,7 +25,7 @@ export default function CustomerDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isPending && !session) navigate("/welcome");
+    if (!isPending && !session) navigate("/");
   }, [session, isPending]);
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export default function CustomerDashboardPage() {
   const handleSignOut = async () => {
     await authClient.signOut();
     clearToken();
-    navigate("/welcome");
+    navigate("/");
   };
 
   if (isPending) return (

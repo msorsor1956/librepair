@@ -102,7 +102,7 @@ export default function SignUpPage() {
       <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-md">
         <div className="glass rounded-2xl p-8">
 
-          <Link to="/welcome">
+          <Link to="/">
             <button className="flex items-center gap-2 text-sm mb-6 hover:text-white transition-colors" style={{ color: "var(--color-muted)" }}>
               <ArrowLeft size={14} /> Back
             </button>

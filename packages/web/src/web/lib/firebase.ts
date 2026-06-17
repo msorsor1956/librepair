@@ -1,4 +1,4 @@
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getAuth,
   RecaptchaVerifier,
@@ -17,17 +17,22 @@ const firebaseConfig = {
   measurementId: "G-8T9W7EN38M",
 };
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+// Only initialise once
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const firebaseAuth = getAuth(app);
 
-// Initialize App Check with reCAPTCHA Enterprise
-if (typeof window !== "undefined" && getApps().length === 1) {
+// App Check — run once, guard with a flag so HMR doesn't double-init
+let appCheckInitialized = false;
+if (typeof window !== "undefined" && !appCheckInitialized) {
   try {
     initializeAppCheck(app, {
       provider: new ReCaptchaEnterpriseProvider("6LedoSItAAAAAB8vTrGfccfxkVbCKL_LRTtRLhoc"),
       isTokenAutoRefreshEnabled: true,
     });
-  } catch {}
+    appCheckInitialized = true;
+  } catch {
+    // Already initialized or reCAPTCHA not loaded yet — safe to ignore
+  }
 }
 
 let recaptchaVerifier: RecaptchaVerifier | null = null;
@@ -37,13 +42,12 @@ export function clearRecaptcha() {
     try { recaptchaVerifier.clear(); } catch {}
     recaptchaVerifier = null;
   }
+  // Also remove any leftover widget divs
+  document.querySelectorAll("#__recaptcha_widget__").forEach((el) => el.remove());
 }
 
 export async function sendFirebaseOTP(phone: string): Promise<ConfirmationResult> {
   clearRecaptcha();
-
-  const existingDiv = document.getElementById("__recaptcha_widget__");
-  if (existingDiv) existingDiv.remove();
 
   const div = document.createElement("div");
   div.id = "__recaptcha_widget__";
@@ -56,7 +60,12 @@ export async function sendFirebaseOTP(phone: string): Promise<ConfirmationResult
     "expired-callback": () => { clearRecaptcha(); },
   });
 
-  return await signInWithPhoneNumber(firebaseAuth, phone, recaptchaVerifier);
+  try {
+    return await signInWithPhoneNumber(firebaseAuth, phone, recaptchaVerifier);
+  } catch (e) {
+    clearRecaptcha();
+    throw e;
+  }
 }
 
 export type { ConfirmationResult };
