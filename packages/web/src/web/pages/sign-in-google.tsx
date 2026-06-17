@@ -14,8 +14,9 @@ export default function SignInGooglePage() {
     setLoading(true);
     setError("");
     try {
+      const frontendBase = import.meta.env.VITE_FRONTEND_URL ?? window.location.origin;
       await authClient.signIn.social(
-        { provider: "google", callbackURL: "/customer/dashboard" },
+        { provider: "google", callbackURL: `${frontendBase}/customer/dashboard` },
         {
           onSuccess: (ctx) => {
             captureToken(ctx as any);

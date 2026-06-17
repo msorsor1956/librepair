@@ -21,7 +21,7 @@ services:
       - key: BETTER_AUTH_URL
         value: https://librepair-backend.onrender.com
       - key: WEBSITE_URL
-        value: https://librepair-backend.onrender.com
+        value: https://librepair.wasmer.app
       - key: S3_ENDPOINT
         value: https://4e93db960a1c13ad600b2eb6eb1147c2.r2.cloudflarestorage.com
       - key: S3_BUCKET
@@ -40,6 +40,8 @@ services:
         value: 1:86955698956:web:2211ccf5087b05810c3729
       - key: VITE_API_URL
         value: https://librepair-backend.onrender.com
+      - key: VITE_FRONTEND_URL
+        value: https://librepair.wasmer.app
       - key: VITE_FIREBASE_API_KEY
         value: AIzaSyCNMz4Gh65dgyoQOFIFz_u0r-b59Hifq_I
       - key: VITE_FIREBASE_AUTH_DOMAIN
