@@ -5,6 +5,7 @@ import {
   signInWithPhoneNumber,
   type ConfirmationResult,
 } from "firebase/auth";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCNMz4Gh65dgyoQOFIFz_u0r-b59Hifq_I",
@@ -16,34 +17,46 @@ const firebaseConfig = {
   measurementId: "G-8T9W7EN38M",
 };
 
-// Avoid re-initializing on HMR
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 export const firebaseAuth = getAuth(app);
 
-// Hold a single reCAPTCHA verifier instance
+// Initialize App Check with reCAPTCHA Enterprise
+if (typeof window !== "undefined" && getApps().length === 1) {
+  try {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider("6LedoSItAAAAAB8vTrGfccfxkVbCKL_LRTtRLhoc"),
+      isTokenAutoRefreshEnabled: true,
+    });
+  } catch {}
+}
+
 let recaptchaVerifier: RecaptchaVerifier | null = null;
 
-export function getRecaptchaVerifier(buttonId: string): RecaptchaVerifier {
+export function clearRecaptcha() {
   if (recaptchaVerifier) {
     try { recaptchaVerifier.clear(); } catch {}
     recaptchaVerifier = null;
   }
-  recaptchaVerifier = new RecaptchaVerifier(firebaseAuth, buttonId, {
-    size: "invisible",
-    callback: () => {},
-    "expired-callback": () => {
-      recaptchaVerifier = null;
-    },
-  });
-  return recaptchaVerifier;
 }
 
-export async function sendFirebaseOTP(
-  phone: string,
-  buttonId: string
-): Promise<ConfirmationResult> {
-  const verifier = getRecaptchaVerifier(buttonId);
-  return await signInWithPhoneNumber(firebaseAuth, phone, verifier);
+export async function sendFirebaseOTP(phone: string): Promise<ConfirmationResult> {
+  clearRecaptcha();
+
+  const existingDiv = document.getElementById("__recaptcha_widget__");
+  if (existingDiv) existingDiv.remove();
+
+  const div = document.createElement("div");
+  div.id = "__recaptcha_widget__";
+  div.style.display = "none";
+  document.body.appendChild(div);
+
+  recaptchaVerifier = new RecaptchaVerifier(firebaseAuth, div, {
+    size: "invisible",
+    callback: () => {},
+    "expired-callback": () => { clearRecaptcha(); },
+  });
+
+  return await signInWithPhoneNumber(firebaseAuth, phone, recaptchaVerifier);
 }
 
 export type { ConfirmationResult };

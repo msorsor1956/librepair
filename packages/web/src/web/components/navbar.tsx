@@ -33,7 +33,7 @@ export function Navbar() {
     >
       <div className="max-w-[1280px] mx-auto w-full flex items-center justify-between">
         {/* Logo */}
-        <Link to="/">
+        <Link to="/home">
           <div className="flex items-center gap-3 cursor-pointer">
             <img src="/logo1.png" alt="LIBrepair" className="h-10 w-auto" />
           </div>

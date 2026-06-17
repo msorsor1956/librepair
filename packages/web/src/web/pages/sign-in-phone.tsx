@@ -1,13 +1,17 @@
 import { apiFetch } from "@/lib/api";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Phone, RotateCcw } from "lucide-react";
-import { sendFirebaseOTP, firebaseAuth } from "@/lib/firebase";
+import { sendFirebaseOTP, firebaseAuth, clearRecaptcha } from "@/lib/firebase";
 import type { ConfirmationResult } from "firebase/auth";
 import { signOut } from "firebase/auth";
 
 export default function SignInPhonePage() {
+  useEffect(() => {
+    clearRecaptcha();
+    return () => clearRecaptcha();
+  }, []);
   const [, navigate] = useLocation();
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
@@ -28,7 +32,7 @@ export default function SignInPhonePage() {
     setLoading(true);
     setError("");
     try {
-      const result = await sendFirebaseOTP(phone, "send-otp-btn");
+      const result = await sendFirebaseOTP(phone);
       confirmationRef.current = result;
       setStep("otp");
       startCooldown();
