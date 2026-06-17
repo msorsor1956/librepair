@@ -1,22 +1,6 @@
-kind: wasmer.io/App.v1
-meta:
-  description: LIBrepair — On-Demand Auto Repair Platform
-  name: sonnietechnologyllc/librepair
-spec:
-  aliases:
-  - librepair.wasmer.app
-  domains:
-  - librepair.wasmer.app
-  workload:
-    capabilities:
-      wasi:
-        env_vars:
-        - name: WASMER_GRAPHQL_URL
-          value: https://registry.wasmer.io/graphql
-        - name: WASMER_APP_ID
-          value: da_Ra7IetdUVkpy
-        - name: WASMER_APP_URL
-          value: https://librepair.wasmer.app
-      web_gateway:
-        force_https: true
-    source: sonnietechnologyllc/librepair@=0.1.11
+name: librepair
+app_id: da_Ra7IetdUVkpy
+owner: sonnietechnologyllc
+package: sonnietechnologyllc/librepair@^0.1.14
+kind: wasmer.io/App.v0
+description: LIBrepair — On-Demand Auto Repair Platform

@@ -1,4 +1,7 @@
 [package]
+name = "sonnietechnologyllc/librepair"
+version = "0.1.14"
+description = "LIBrepair — On-Demand Auto Repair Platform"
 entrypoint = "server"
 
 [dependencies]
@@ -14,4 +17,4 @@ runner = "https://webc.org/runner/wasi"
 
 [command.annotations.wasi]
 atom = "wasmer/static-web-server:webserver"
-main-args = ["-a", "0.0.0.0", "-p", "3000", "-d", "/public", "--page404", "/public/index.html", "--page-fallback", "/public/index.html"]
+main-args = ["-a", "0.0.0.0", "-p", "3000", "--root", "/public", "--page404", "/public/index.html"]
