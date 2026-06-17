@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import {
   UserPlus, Search, Pencil, Trash2, Phone, Mail, MapPin, X,
-  AlertCircle, KeyRound, CheckCircle, Send,
+  AlertCircle, KeyRound, CheckCircle, Send, RefreshCw,
 } from "lucide-react";
 
 type User = {
@@ -16,6 +16,35 @@ type Tab = "customers" | "all" | "mechanic" | "admin";
 const roleColors: Record<string, string> = {
   customer: "badge-blue", mechanic: "badge-green", admin: "badge-red", dispatcher: "badge-yellow",
 };
+
+function SyncUsersButton() {
+  const qc = useQueryClient();
+  const [msg, setMsg] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const sync = async () => {
+    setSyncing(true);
+    setMsg("");
+    try {
+      const res = await api.post("/superadmin/sync-users", {});
+      setMsg(`✓ ${res.message}`);
+      qc.invalidateQueries({ queryKey: ["users"] });
+    } catch (e: any) {
+      setMsg(`✗ ${e.message}`);
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setMsg(""), 5000);
+    }
+  };
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      {msg && <span style={{ fontSize: 12, color: msg.startsWith("✓") ? "#4ade80" : "#f87171" }}>{msg}</span>}
+      <button className="btn btn-ghost" onClick={sync} disabled={syncing} title="Sync Google/social sign-ups into users table">
+        <RefreshCw size={14} style={{ animation: syncing ? "spin 0.8s linear infinite" : "none" }} />
+        {syncing ? "Syncing…" : "Sync Auth Users"}
+      </button>
+    </div>
+  );
+}
 
 export default function UsersPage() {
   const qc = useQueryClient();
@@ -74,9 +103,12 @@ export default function UsersPage() {
           <h1 style={{ fontFamily: "Rajdhani, sans-serif", fontSize: 24, fontWeight: 700 }}>Users</h1>
           <p style={{ color: "#555", fontSize: 13 }}>{users.length} total · {users.filter(u => u.role === "customer").length} customers</p>
         </div>
-        <button className="btn btn-red" onClick={() => setShowAdd(true)}>
-          <UserPlus size={14} /> Add User
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <SyncUsersButton />
+          <button className="btn btn-red" onClick={() => setShowAdd(true)}>
+            <UserPlus size={14} /> Add User
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}

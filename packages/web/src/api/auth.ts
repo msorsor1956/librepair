@@ -4,6 +4,7 @@ import { bearer } from "better-auth/plugins";
 import { expo } from "@better-auth/expo";
 import { db } from "./database";
 import * as schema from "./database/schema";
+import { eq } from "drizzle-orm";
 import { execSync } from "child_process";
 
 export const auth = betterAuth({
@@ -74,20 +75,38 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
-          try {
-            await db
-              .insert(schema.users)
-              .values({
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                profilePhoto: user.image ?? null,
-                role: "customer",
-              })
-              .onConflictDoNothing();
-          } catch {
-            // ignore — row may already exist
+          // Mirror every new sign-up (email OR social/Google) into our custom users table
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              await db
+                .insert(schema.users)
+                .values({
+                  id: user.id,
+                  name: user.name || user.email,
+                  email: user.email,
+                  profilePhoto: (user as any).image ?? null,
+                  role: "customer",
+                  isActive: true,
+                })
+                .onConflictDoNothing();
+              break; // success
+            } catch (err) {
+              console.error(`[auth hook] attempt ${attempt + 1} failed:`, err);
+              if (attempt < 2) await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
+            }
           }
+        },
+      },
+      update: {
+        after: async (user) => {
+          // Keep name/email/photo in sync if user updates their profile
+          try {
+            const updates: Record<string, any> = { updatedAt: new Date() };
+            if (user.name) updates.name = user.name;
+            if (user.email) updates.email = user.email;
+            if ((user as any).image !== undefined) updates.profilePhoto = (user as any).image ?? null;
+            await db.update(schema.users).set(updates).where(eq(schema.users.id, user.id)).catch(() => {});
+          } catch { /* ignore */ }
         },
       },
     },

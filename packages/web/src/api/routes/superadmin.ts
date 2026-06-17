@@ -27,6 +27,34 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
   .use("*", authMiddleware)
 
   /* ══════════════════════════════════════════════════
+     SYNC AUTH USERS → CUSTOM USERS TABLE
+     Call this anytime to fix missing Google/social signups
+  ══════════════════════════════════════════════════ */
+  .post("/sync-users", requireAuth, requireSuperAdmin, async (c) => {
+    // Grab all better-auth users via raw SQL
+    const { sql } = await import("drizzle-orm");
+    const baUsers = await db.run(sql`SELECT id, name, email, image FROM user`);
+    const rows = (baUsers as any).rows ?? [];
+    const existingUsers = await db.select({ id: schema.users.id }).from(schema.users);
+    const existingIds = new Set(existingUsers.map(u => u.id));
+    let synced = 0;
+    for (const row of rows) {
+      const id = row.id ?? row[0];
+      const name = row.name ?? row[1] ?? "";
+      const email = row.email ?? row[2] ?? "";
+      const image = row.image ?? row[3] ?? null;
+      if (!existingIds.has(id)) {
+        try {
+          await db.insert(schema.users).values({ id, name: name || email, email, profilePhoto: image, role: "customer", isActive: true }).onConflictDoNothing();
+          synced++;
+        } catch { /* ignore */ }
+      }
+    }
+    const total = await db.select({ id: schema.users.id }).from(schema.users);
+    return c.json({ synced, total: total.length, message: `Synced ${synced} missing users. Total users: ${total.length}` }, 200);
+  })
+
+  /* ══════════════════════════════════════════════════
      STATS DASHBOARD
   ══════════════════════════════════════════════════ */
   .get("/stats", requireAuth, requireSuperAdmin, async (c) => {
