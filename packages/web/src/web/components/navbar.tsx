@@ -34,7 +34,7 @@ export function Navbar() {
     >
       <div className="max-w-[1280px] mx-auto w-full flex items-center justify-between">
         {/* Logo */}
-        <Link to="/home">
+        <Link to="/">
           <div className="flex items-center gap-3 cursor-pointer">
             <img src="/logo1.png" alt="LIBrepair" className="h-10 w-auto" />
           </div>
@@ -87,12 +87,12 @@ export function Navbar() {
             </div>
           ) : (
             <>
-              <Link to="/sign-in">
+              <Link to="/welcome">
                 <button className="text-sm font-medium transition-colors hover:text-white" style={{ color: "var(--color-silver)" }}>
                   Sign In
                 </button>
               </Link>
-              <Link to="/sign-up">
+              <Link to="/welcome">
                 <button className="text-sm px-5 py-2.5 rounded-md font-semibold transition-all hover:opacity-90 red-glow" style={{ backgroundColor: "var(--color-red)", color: "white" }}>
                   Get Started
                 </button>
@@ -131,10 +131,10 @@ export function Navbar() {
               </>
             ) : (
               <>
-                <Link to="/sign-in" onClick={() => setMenuOpen(false)}>
+                <Link to="/welcome" onClick={() => setMenuOpen(false)}>
                   <span className="text-sm font-medium" style={{ color: "var(--color-white)" }}>Sign In</span>
                 </Link>
-                <Link to="/sign-up" onClick={() => setMenuOpen(false)}>
+                <Link to="/welcome" onClick={() => setMenuOpen(false)}>
                   <span className="text-sm font-medium" style={{ color: "var(--color-red)" }}>Get Started</span>
                 </Link>
               </>

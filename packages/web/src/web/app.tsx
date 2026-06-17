@@ -27,7 +27,8 @@ function App() {
     <Provider>
       <Switch>
         {/* Public */}
-        <Route path="/" component={WelcomePage} />
+        <Route path="/" component={IndexPage} />
+        <Route path="/welcome" component={WelcomePage} />
         <Route path="/home" component={IndexPage} />
         <Route path="/sign-in" component={SignInPage} />
         <Route path="/sign-up" component={SignUpPage} />
