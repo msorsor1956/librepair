@@ -1,6 +1,6 @@
 name: librepair
 app_id: da_Ra7IetdUVkpy
 owner: sonnietechnologyllc
-package: sonnietechnologyllc/librepair@^0.1.15
+package: sonnietechnologyllc/librepair@^0.1.16
 kind: wasmer.io/App.v0
 description: LIBrepair — On-Demand Auto Repair Platform
