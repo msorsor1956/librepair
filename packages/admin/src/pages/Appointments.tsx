@@ -4,7 +4,7 @@ import { api } from "../lib/api";
 import {
   Plus, X, Search, RefreshCw, CalendarPlus, Clock, User, Car,
   Wrench, MapPin, DollarSign, AlertCircle, CreditCard, Calendar,
-  ExternalLink, CheckCircle, Copy,
+  ExternalLink, CheckCircle, Copy, Edit2, Trash2,
 } from "lucide-react";
 
 type Appointment = {
@@ -42,6 +42,7 @@ export default function AppointmentsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
+  const [editTarget, setEditTarget] = useState<Appointment | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState<number | null>(null);
 
@@ -52,6 +53,11 @@ export default function AppointmentsPage() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...body }: any) => api.patch(`/superadmin/appointments/${id}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.delete(`/superadmin/appointments/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
   });
 
@@ -280,17 +286,30 @@ export default function AppointmentsPage() {
                     </td>
 
                     <td>
-                      <select
-                        value={a.status}
-                        onChange={e => updateMutation.mutate({ id: a.id, status: e.target.value })}
-                        style={{ width: "auto", padding: "5px 8px", fontSize: 12 }}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="in-progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <select
+                          value={a.status}
+                          onChange={e => updateMutation.mutate({ id: a.id, status: e.target.value })}
+                          style={{ width: "auto", padding: "5px 8px", fontSize: 12 }}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="confirmed">Confirmed</option>
+                          <option value="in-progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                        <button className="btn btn-ghost" onClick={() => setEditTarget(a)} style={{ padding: "5px 8px", fontSize: 11 }} title="Edit appointment">
+                          <Edit2 size={11} />
+                        </button>
+                        <button
+                          className="btn btn-ghost"
+                          onClick={() => { if (confirm("Delete this appointment?")) deleteMutation.mutate(a.id); }}
+                          style={{ padding: "5px 8px", fontSize: 11, color: "#e02020", borderColor: "rgba(224,32,32,0.2)" }}
+                          title="Delete appointment"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -306,6 +325,154 @@ export default function AppointmentsPage() {
           onCreated={() => { qc.invalidateQueries({ queryKey: ["appointments"] }); setShowCreate(false); }}
         />
       )}
+      {editTarget && (
+        <EditAppointmentModal
+          appointment={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => { qc.invalidateQueries({ queryKey: ["appointments"] }); setEditTarget(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Edit Appointment Modal ───────────────────────────────────────────────────
+function EditAppointmentModal({ appointment, onClose, onSaved }: {
+  appointment: Appointment; onClose: () => void; onSaved: () => void;
+}) {
+  const scheduled = appointment.scheduledAt ? new Date(appointment.scheduledAt) : null;
+  const [form, setForm] = useState({
+    status: appointment.status,
+    serviceType: appointment.serviceType,
+    scheduledDate: scheduled ? scheduled.toISOString().split("T")[0] : "",
+    scheduledTime: scheduled
+      ? scheduled.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })
+      : "09:00",
+    totalCost: appointment.totalCost != null ? String(appointment.totalCost) : "",
+    notes: appointment.notes ?? "",
+    mechanicNotes: "",
+    customerAddress: "",
+  });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+
+  const { data: mechanicsData } = useQuery({
+    queryKey: ["mechanics"],
+    queryFn: () => api.get("/superadmin/mechanics"),
+  });
+  const { data: vehiclesData } = useQuery({
+    queryKey: ["vehicles", appointment.customerId],
+    queryFn: () => api.get(`/superadmin/vehicles?userId=${appointment.customerId}`),
+    enabled: !!appointment.customerId,
+  });
+  const { data: servicesData } = useQuery({
+    queryKey: ["services"],
+    queryFn: () => api.get("/superadmin/services"),
+  });
+
+  const mechanics: any[] = mechanicsData?.mechanics ?? [];
+  const vehicles: any[] = vehiclesData?.vehicles ?? [];
+  const services: any[] = (servicesData?.services ?? []).filter((s: any) => s.isActive);
+
+  async function handleSubmit() {
+    if (!form.scheduledDate) { setError("Date is required"); return; }
+    setError(""); setLoading(true);
+    try {
+      const dateTime = new Date(`${form.scheduledDate}T${form.scheduledTime}:00`);
+      await api.patch(`/superadmin/appointments/${appointment.id}`, {
+        status: form.status,
+        serviceType: form.serviceType,
+        scheduledAt: dateTime.toISOString(),
+        totalCost: form.totalCost !== "" ? Number(form.totalCost) : null,
+        notes: form.notes || null,
+        mechanicNotes: form.mechanicNotes || null,
+        customerAddress: form.customerAddress || null,
+      });
+      onSaved();
+    } catch (e: any) { setError(e.message ?? "Failed"); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal" style={{ maxWidth: 560 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div>
+            <h2 style={{ fontFamily: "Rajdhani", fontSize: 20, fontWeight: 700 }}>Edit Appointment #{appointment.id}</h2>
+            <p style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{appointment.customerName} · {appointment.serviceName ?? "No service"}</p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#555", cursor: "pointer" }}><X size={18} /></button>
+        </div>
+        {error && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(224,32,32,0.08)", border: "1px solid rgba(224,32,32,0.2)", borderRadius: 8, color: "#f87171", fontSize: 13, marginBottom: 16 }}><AlertCircle size={14} />{error}</div>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Status + Service type */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="form-group">
+              <label className="form-label">Status</label>
+              <select value={form.status} onChange={e => set("status", e.target.value)}>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="in-progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Service Type</label>
+              <select value={form.serviceType} onChange={e => set("serviceType", e.target.value)}>
+                <option value="in-shop">In-Shop</option>
+                <option value="home-service">Home Service</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Date + Time */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="form-group">
+              <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 6 }}><CalendarPlus size={12} /> Date *</label>
+              <input type="date" value={form.scheduledDate} onChange={e => set("scheduledDate", e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 6 }}><Clock size={12} /> Time</label>
+              <input type="time" value={form.scheduledTime} onChange={e => set("scheduledTime", e.target.value)} />
+            </div>
+          </div>
+
+          {/* Total cost */}
+          <div className="form-group">
+            <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 6 }}><DollarSign size={12} /> Total Cost</label>
+            <input type="number" value={form.totalCost} onChange={e => set("totalCost", e.target.value)} placeholder="0.00" min="0" step="0.01" />
+          </div>
+
+          {/* Home address */}
+          {form.serviceType === "home-service" && (
+            <div className="form-group">
+              <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 6 }}><MapPin size={12} /> Customer Address</label>
+              <input value={form.customerAddress} onChange={e => set("customerAddress", e.target.value)} placeholder="123 Main St, City, State" />
+            </div>
+          )}
+
+          {/* Notes */}
+          <div className="form-group">
+            <label className="form-label">Customer Notes</label>
+            <textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={2} placeholder="Issue description, customer requests..." />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 6 }}><Wrench size={12} /> Mechanic Notes</label>
+            <textarea value={form.mechanicNotes} onChange={e => set("mechanicNotes", e.target.value)} rows={2} placeholder="Internal mechanic notes..." />
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 24, justifyContent: "flex-end" }}>
+          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-red" disabled={loading} onClick={handleSubmit} style={{ minWidth: 140, justifyContent: "center" }}>
+            {loading ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

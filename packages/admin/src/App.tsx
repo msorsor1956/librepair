@@ -11,6 +11,12 @@ import InventoryPage from "./pages/Inventory";
 import NotificationsPage from "./pages/Notifications";
 import AnnouncementsPage from "./pages/Announcements";
 import AppointmentsPage from "./pages/Appointments";
+import VehiclesPage from "./pages/Vehicles";
+import ServicesPage from "./pages/Services";
+import MechanicsPage from "./pages/Mechanics";
+import ReviewsPage from "./pages/Reviews";
+import RemindersPage from "./pages/Reminders";
+import InvoicesPage from "./pages/Invoices";
 
 export type AdminUser = { id: string; email: string; name: string; role: string };
 
@@ -49,11 +55,17 @@ function App() {
       <Switch>
         <Route path="/" component={StatsPage} />
         <Route path="/users" component={UsersPage} />
+        <Route path="/appointments" component={AppointmentsPage} />
         <Route path="/payments" component={PaymentsPage} />
         <Route path="/inventory" component={InventoryPage} />
+        <Route path="/vehicles" component={VehiclesPage} />
+        <Route path="/services" component={ServicesPage} />
+        <Route path="/mechanics" component={MechanicsPage} />
+        <Route path="/reviews" component={ReviewsPage} />
+        <Route path="/reminders" component={RemindersPage} />
+        <Route path="/invoices" component={InvoicesPage} />
         <Route path="/notifications" component={NotificationsPage} />
         <Route path="/announcements" component={AnnouncementsPage} />
-        <Route path="/appointments" component={AppointmentsPage} />
         <Route>
           <div style={{ padding: 40, textAlign: "center", color: "#555" }}>Page not found</div>
         </Route>

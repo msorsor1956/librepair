@@ -543,14 +543,321 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
   })
 
   /* ══════════════════════════════════════════════════
-     VEHICLES
+     VEHICLES — FULL CRUD
   ══════════════════════════════════════════════════ */
   .get("/vehicles", requireAuth, requireSuperAdmin, async (c) => {
     const userId = c.req.query("userId");
-    const rows = userId
-      ? await db.select().from(schema.vehicles).where(eq(schema.vehicles.userId, userId))
-      : await db.select().from(schema.vehicles);
+    const rows = await db
+      .select({
+        id: schema.vehicles.id,
+        userId: schema.vehicles.userId,
+        ownerName: schema.users.name,
+        ownerEmail: schema.users.email,
+        make: schema.vehicles.make,
+        model: schema.vehicles.model,
+        year: schema.vehicles.year,
+        vin: schema.vehicles.vin,
+        licensePlate: schema.vehicles.licensePlate,
+        color: schema.vehicles.color,
+        mileage: schema.vehicles.mileage,
+        lastServiceDate: schema.vehicles.lastServiceDate,
+        createdAt: schema.vehicles.createdAt,
+      })
+      .from(schema.vehicles)
+      .leftJoin(schema.users, eq(schema.vehicles.userId, schema.users.id))
+      .where(userId ? eq(schema.vehicles.userId, userId) : undefined as any)
+      .orderBy(desc(schema.vehicles.createdAt));
     return c.json({ vehicles: rows }, 200);
+  })
+
+  .post("/vehicles", requireAuth, requireSuperAdmin, async (c) => {
+    const body = await c.req.json();
+    if (!body.userId || !body.make || !body.model || !body.year) {
+      return c.json({ message: "userId, make, model, year required" }, 400);
+    }
+    const [created] = await db.insert(schema.vehicles).values({
+      userId: body.userId,
+      make: body.make,
+      model: body.model,
+      year: Number(body.year),
+      vin: body.vin ?? null,
+      licensePlate: body.licensePlate ?? null,
+      color: body.color ?? null,
+      mileage: body.mileage ? Number(body.mileage) : 0,
+    }).returning();
+    return c.json(created, 201);
+  })
+
+  .patch("/vehicles/:id", requireAuth, requireSuperAdmin, async (c) => {
+    const id = Number(c.req.param("id"));
+    const body = await c.req.json();
+    const updates: Record<string, any> = {};
+    ["make","model","vin","licensePlate","color"].forEach(k => { if (body[k] !== undefined) updates[k] = body[k]; });
+    if (body.year !== undefined) updates.year = Number(body.year);
+    if (body.mileage !== undefined) updates.mileage = Number(body.mileage);
+    if (body.lastServiceDate !== undefined) updates.lastServiceDate = body.lastServiceDate ? new Date(body.lastServiceDate) : null;
+    const [updated] = await db.update(schema.vehicles).set(updates).where(eq(schema.vehicles.id, id)).returning();
+    if (!updated) return c.json({ message: "Not found" }, 404);
+    return c.json(updated, 200);
+  })
+
+  .delete("/vehicles/:id", requireAuth, requireSuperAdmin, async (c) => {
+    await db.delete(schema.vehicles).where(eq(schema.vehicles.id, Number(c.req.param("id"))));
+    return c.json({ success: true }, 200);
+  })
+
+  /* ══════════════════════════════════════════════════
+     SERVICES — FULL CRUD
+  ══════════════════════════════════════════════════ */
+  .get("/services", requireAuth, requireSuperAdmin, async (c) => {
+    const rows = await db.select().from(schema.services).orderBy(schema.services.category, schema.services.name);
+    return c.json({ services: rows }, 200);
+  })
+
+  .post("/services", requireAuth, requireSuperAdmin, async (c) => {
+    const body = await c.req.json();
+    if (!body.name || !body.category || body.basePrice === undefined) {
+      return c.json({ message: "name, category, basePrice required" }, 400);
+    }
+    const [created] = await db.insert(schema.services).values({
+      name: body.name,
+      description: body.description ?? null,
+      category: body.category,
+      basePrice: Number(body.basePrice),
+      durationMinutes: body.durationMinutes ? Number(body.durationMinutes) : 60,
+      isActive: body.isActive !== false,
+    }).returning();
+    return c.json(created, 201);
+  })
+
+  .patch("/services/:id", requireAuth, requireSuperAdmin, async (c) => {
+    const id = Number(c.req.param("id"));
+    const body = await c.req.json();
+    const updates: Record<string, any> = {};
+    ["name","description","category"].forEach(k => { if (body[k] !== undefined) updates[k] = body[k]; });
+    if (body.basePrice !== undefined) updates.basePrice = Number(body.basePrice);
+    if (body.durationMinutes !== undefined) updates.durationMinutes = Number(body.durationMinutes);
+    if (body.isActive !== undefined) updates.isActive = body.isActive;
+    const [updated] = await db.update(schema.services).set(updates).where(eq(schema.services.id, id)).returning();
+    if (!updated) return c.json({ message: "Not found" }, 404);
+    return c.json(updated, 200);
+  })
+
+  .delete("/services/:id", requireAuth, requireSuperAdmin, async (c) => {
+    await db.delete(schema.services).where(eq(schema.services.id, Number(c.req.param("id"))));
+    return c.json({ success: true }, 200);
+  })
+
+  /* ══════════════════════════════════════════════════
+     MECHANICS — FULL CRUD
+  ══════════════════════════════════════════════════ */
+  .get("/mechanics", requireAuth, requireSuperAdmin, async (c) => {
+    const rows = await db
+      .select({
+        id: schema.mechanics.id,
+        userId: schema.mechanics.userId,
+        name: schema.users.name,
+        email: schema.users.email,
+        phone: schema.users.phone,
+        specializations: schema.mechanics.specializations,
+        rating: schema.mechanics.rating,
+        totalJobs: schema.mechanics.totalJobs,
+        isAvailable: schema.mechanics.isAvailable,
+        bio: schema.mechanics.bio,
+        createdAt: schema.mechanics.createdAt,
+      })
+      .from(schema.mechanics)
+      .leftJoin(schema.users, eq(schema.mechanics.userId, schema.users.id))
+      .orderBy(desc(schema.mechanics.createdAt));
+    return c.json({ mechanics: rows }, 200);
+  })
+
+  .post("/mechanics", requireAuth, requireSuperAdmin, async (c) => {
+    const body = await c.req.json();
+    if (!body.userId) return c.json({ message: "userId required" }, 400);
+    // Ensure user exists and has mechanic role
+    await db.update(schema.users).set({ role: "mechanic", updatedAt: new Date() }).where(eq(schema.users.id, body.userId));
+    const [created] = await db.insert(schema.mechanics).values({
+      userId: body.userId,
+      specializations: body.specializations ?? null,
+      rating: body.rating ? Number(body.rating) : 5.0,
+      totalJobs: 0,
+      isAvailable: body.isAvailable !== false,
+      bio: body.bio ?? null,
+    }).returning();
+    return c.json(created, 201);
+  })
+
+  .patch("/mechanics/:id", requireAuth, requireSuperAdmin, async (c) => {
+    const id = Number(c.req.param("id"));
+    const body = await c.req.json();
+    const updates: Record<string, any> = {};
+    ["specializations","bio"].forEach(k => { if (body[k] !== undefined) updates[k] = body[k]; });
+    if (body.rating !== undefined) updates.rating = Number(body.rating);
+    if (body.totalJobs !== undefined) updates.totalJobs = Number(body.totalJobs);
+    if (body.isAvailable !== undefined) updates.isAvailable = body.isAvailable;
+    const [updated] = await db.update(schema.mechanics).set(updates).where(eq(schema.mechanics.id, id)).returning();
+    if (!updated) return c.json({ message: "Not found" }, 404);
+    return c.json(updated, 200);
+  })
+
+  .delete("/mechanics/:id", requireAuth, requireSuperAdmin, async (c) => {
+    await db.delete(schema.mechanics).where(eq(schema.mechanics.id, Number(c.req.param("id"))));
+    return c.json({ success: true }, 200);
+  })
+
+  /* ══════════════════════════════════════════════════
+     REVIEWS — VIEW + DELETE
+  ══════════════════════════════════════════════════ */
+  .get("/reviews", requireAuth, requireSuperAdmin, async (c) => {
+    const rows = await db
+      .select({
+        id: schema.reviews.id,
+        rating: schema.reviews.rating,
+        comment: schema.reviews.comment,
+        createdAt: schema.reviews.createdAt,
+        appointmentId: schema.reviews.appointmentId,
+        customerId: schema.reviews.customerId,
+        customerName: schema.users.name,
+        mechanicId: schema.reviews.mechanicId,
+      })
+      .from(schema.reviews)
+      .leftJoin(schema.users, eq(schema.reviews.customerId, schema.users.id))
+      .orderBy(desc(schema.reviews.createdAt));
+    return c.json({ reviews: rows }, 200);
+  })
+
+  .delete("/reviews/:id", requireAuth, requireSuperAdmin, async (c) => {
+    await db.delete(schema.reviews).where(eq(schema.reviews.id, Number(c.req.param("id"))));
+    return c.json({ success: true }, 200);
+  })
+
+  /* ══════════════════════════════════════════════════
+     REMINDERS — VIEW + EDIT
+  ══════════════════════════════════════════════════ */
+  .get("/reminders", requireAuth, requireSuperAdmin, async (c) => {
+    const rows = await db
+      .select({
+        id: schema.reminders.id,
+        type: schema.reminders.type,
+        dueDate: schema.reminders.dueDate,
+        dueMileage: schema.reminders.dueMileage,
+        isCompleted: schema.reminders.isCompleted,
+        message: schema.reminders.message,
+        createdAt: schema.reminders.createdAt,
+        userId: schema.reminders.userId,
+        userName: schema.users.name,
+        userEmail: schema.users.email,
+        vehicleId: schema.reminders.vehicleId,
+        vehicleMake: schema.vehicles.make,
+        vehicleModel: schema.vehicles.model,
+        vehicleYear: schema.vehicles.year,
+      })
+      .from(schema.reminders)
+      .leftJoin(schema.users, eq(schema.reminders.userId, schema.users.id))
+      .leftJoin(schema.vehicles, eq(schema.reminders.vehicleId, schema.vehicles.id))
+      .orderBy(desc(schema.reminders.createdAt));
+    return c.json({ reminders: rows }, 200);
+  })
+
+  .post("/reminders", requireAuth, requireSuperAdmin, async (c) => {
+    const body = await c.req.json();
+    if (!body.userId || !body.type) return c.json({ message: "userId and type required" }, 400);
+    const [created] = await db.insert(schema.reminders).values({
+      userId: body.userId,
+      vehicleId: body.vehicleId ? Number(body.vehicleId) : null,
+      type: body.type,
+      dueDate: body.dueDate ? new Date(body.dueDate) : null,
+      dueMileage: body.dueMileage ? Number(body.dueMileage) : null,
+      isCompleted: false,
+      message: body.message ?? null,
+    }).returning();
+    return c.json(created, 201);
+  })
+
+  .patch("/reminders/:id", requireAuth, requireSuperAdmin, async (c) => {
+    const id = Number(c.req.param("id"));
+    const body = await c.req.json();
+    const updates: Record<string, any> = {};
+    ["type","message"].forEach(k => { if (body[k] !== undefined) updates[k] = body[k]; });
+    if (body.dueDate !== undefined) updates.dueDate = body.dueDate ? new Date(body.dueDate) : null;
+    if (body.dueMileage !== undefined) updates.dueMileage = body.dueMileage ? Number(body.dueMileage) : null;
+    if (body.isCompleted !== undefined) updates.isCompleted = body.isCompleted;
+    const [updated] = await db.update(schema.reminders).set(updates).where(eq(schema.reminders.id, id)).returning();
+    if (!updated) return c.json({ message: "Not found" }, 404);
+    return c.json(updated, 200);
+  })
+
+  .delete("/reminders/:id", requireAuth, requireSuperAdmin, async (c) => {
+    await db.delete(schema.reminders).where(eq(schema.reminders.id, Number(c.req.param("id"))));
+    return c.json({ success: true }, 200);
+  })
+
+  /* ══════════════════════════════════════════════════
+     INVOICES — VIEW + EDIT
+  ══════════════════════════════════════════════════ */
+  .get("/invoices", requireAuth, requireSuperAdmin, async (c) => {
+    const rows = await db
+      .select({
+        id: schema.invoices.id,
+        invoiceNumber: schema.invoices.invoiceNumber,
+        subtotal: schema.invoices.subtotal,
+        tax: schema.invoices.tax,
+        total: schema.invoices.total,
+        status: schema.invoices.status,
+        dueDate: schema.invoices.dueDate,
+        paidAt: schema.invoices.paidAt,
+        notes: schema.invoices.notes,
+        createdAt: schema.invoices.createdAt,
+        appointmentId: schema.invoices.appointmentId,
+        customerId: schema.invoices.customerId,
+        customerName: schema.users.name,
+        customerEmail: schema.users.email,
+      })
+      .from(schema.invoices)
+      .leftJoin(schema.users, eq(schema.invoices.customerId, schema.users.id))
+      .orderBy(desc(schema.invoices.createdAt));
+    return c.json({ invoices: rows }, 200);
+  })
+
+  .post("/invoices", requireAuth, requireSuperAdmin, async (c) => {
+    const body = await c.req.json();
+    if (!body.customerId || body.subtotal === undefined || body.total === undefined) {
+      return c.json({ message: "customerId, subtotal, total required" }, 400);
+    }
+    const invNum = `INV-${Date.now()}`;
+    const [created] = await db.insert(schema.invoices).values({
+      appointmentId: body.appointmentId ? Number(body.appointmentId) : null,
+      customerId: body.customerId,
+      invoiceNumber: invNum,
+      subtotal: Number(body.subtotal),
+      tax: body.tax ? Number(body.tax) : 0,
+      total: Number(body.total),
+      status: body.status ?? "draft",
+      dueDate: body.dueDate ? new Date(body.dueDate) : null,
+      notes: body.notes ?? null,
+    }).returning();
+    return c.json(created, 201);
+  })
+
+  .patch("/invoices/:id", requireAuth, requireSuperAdmin, async (c) => {
+    const id = Number(c.req.param("id"));
+    const body = await c.req.json();
+    const updates: Record<string, any> = {};
+    ["status","notes"].forEach(k => { if (body[k] !== undefined) updates[k] = body[k]; });
+    if (body.subtotal !== undefined) updates.subtotal = Number(body.subtotal);
+    if (body.tax !== undefined) updates.tax = Number(body.tax);
+    if (body.total !== undefined) updates.total = Number(body.total);
+    if (body.dueDate !== undefined) updates.dueDate = body.dueDate ? new Date(body.dueDate) : null;
+    if (body.paidAt !== undefined) updates.paidAt = body.paidAt ? new Date(body.paidAt) : null;
+    const [updated] = await db.update(schema.invoices).set(updates).where(eq(schema.invoices.id, id)).returning();
+    if (!updated) return c.json({ message: "Not found" }, 404);
+    return c.json(updated, 200);
+  })
+
+  .delete("/invoices/:id", requireAuth, requireSuperAdmin, async (c) => {
+    await db.delete(schema.invoices).where(eq(schema.invoices.id, Number(c.req.param("id"))));
+    return c.json({ success: true }, 200);
   })
 
   /* ══════════════════════════════════════════════════
@@ -585,13 +892,23 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
   .patch("/appointments/:id", requireAuth, requireSuperAdmin, async (c) => {
     const id = c.req.param("id");
     const body = await c.req.json();
-    const updates: Record<string, any> = {};
-    if (body.status !== undefined) updates.status = body.status;
-    if (body.notes !== undefined) updates.notes = body.notes;
+    const updates: Record<string, any> = { updatedAt: new Date() };
+    ["status","notes","mechanicNotes","serviceType","customerAddress"].forEach(k => { if (body[k] !== undefined) updates[k] = body[k]; });
     if (body.scheduledAt !== undefined) updates.scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : null;
+    if (body.completedAt !== undefined) updates.completedAt = body.completedAt ? new Date(body.completedAt) : null;
+    if (body.totalCost !== undefined) updates.totalCost = body.totalCost !== "" ? Number(body.totalCost) : null;
+    if (body.bookingFee !== undefined) updates.bookingFee = Number(body.bookingFee);
+    if (body.vehicleId !== undefined) updates.vehicleId = body.vehicleId ? Number(body.vehicleId) : null;
+    if (body.mechanicId !== undefined) updates.mechanicId = body.mechanicId ? Number(body.mechanicId) : null;
+    if (body.serviceId !== undefined) updates.serviceId = body.serviceId ? Number(body.serviceId) : null;
     const [updated] = await db.update(schema.appointments).set(updates).where(eq(schema.appointments.id, id)).returning();
     if (!updated) return c.json({ message: "Not found" }, 404);
     return c.json(updated, 200);
+  })
+
+  .delete("/appointments/:id", requireAuth, requireSuperAdmin, async (c) => {
+    await db.delete(schema.appointments).where(eq(schema.appointments.id, Number(c.req.param("id"))));
+    return c.json({ success: true }, 200);
   })
 
   /* ══════════════════════════════════════════════════

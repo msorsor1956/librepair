@@ -3,18 +3,115 @@ import { useState } from "react";
 import type { AdminUser } from "../App";
 import {
   LayoutDashboard, Users, CreditCard, Car, Bell, Megaphone,
-  CalendarCheck, LogOut, Menu, X, ChevronRight, Shield
+  CalendarCheck, LogOut, Menu, X, ChevronRight, Shield,
+  Wrench, Star, Clock, FileText, ChevronDown,
 } from "lucide-react";
 
-const nav = [
+type NavItem = { href: string; label: string; icon: any };
+type NavGroup = { label: string; icon: any; items: NavItem[] };
+
+const navGroups: (NavItem | NavGroup)[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/users", label: "Users", icon: Users },
-  { href: "/appointments", label: "Appointments", icon: CalendarCheck },
-  { href: "/payments", label: "Payments", icon: CreditCard },
-  { href: "/inventory", label: "Inventory", icon: Car },
-  { href: "/notifications", label: "Notify Customers", icon: Bell },
-  { href: "/announcements", label: "Announcements", icon: Megaphone },
+  {
+    label: "People",
+    icon: Users,
+    items: [
+      { href: "/users", label: "All Users", icon: Users },
+      { href: "/mechanics", label: "Mechanics", icon: Wrench },
+    ],
+  },
+  {
+    label: "Operations",
+    icon: CalendarCheck,
+    items: [
+      { href: "/appointments", label: "Appointments", icon: CalendarCheck },
+      { href: "/reminders", label: "Reminders", icon: Clock },
+      { href: "/reviews", label: "Reviews", icon: Star },
+    ],
+  },
+  {
+    label: "Catalog",
+    icon: Wrench,
+    items: [
+      { href: "/services", label: "Services", icon: Wrench },
+      { href: "/vehicles", label: "Vehicles", icon: Car },
+      { href: "/inventory", label: "Car Inventory", icon: Car },
+    ],
+  },
+  {
+    label: "Finance",
+    icon: CreditCard,
+    items: [
+      { href: "/payments", label: "Payments", icon: CreditCard },
+      { href: "/invoices", label: "Invoices", icon: FileText },
+    ],
+  },
+  {
+    label: "Communicate",
+    icon: Bell,
+    items: [
+      { href: "/notifications", label: "Notify Customers", icon: Bell },
+      { href: "/announcements", label: "Announcements", icon: Megaphone },
+    ],
+  },
 ];
+
+function isNavGroup(item: NavItem | NavGroup): item is NavGroup {
+  return "items" in item;
+}
+
+function NavGroupItem({ group, location, setSidebarOpen }: {
+  group: NavGroup; location: string; setSidebarOpen: (v: boolean) => void;
+}) {
+  const isActive = group.items.some(i => location === i.href || (i.href !== "/" && location.startsWith(i.href)));
+  const [open, setOpen] = useState(isActive);
+  const Icon = group.icon;
+
+  return (
+    <div>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: "flex", alignItems: "center", gap: 10, padding: "9px 12px",
+          borderRadius: 8, marginBottom: 2, cursor: "pointer",
+          background: isActive ? "rgba(224,32,32,0.06)" : "transparent",
+          color: isActive ? "#e02020" : "#666",
+        }}
+        onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)"; }}
+        onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+      >
+        <Icon size={15} />
+        <span style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", flex: 1 }}>{group.label}</span>
+        <ChevronDown size={12} style={{ transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} />
+      </div>
+      {open && (
+        <div style={{ paddingLeft: 8 }}>
+          {group.items.map(({ href, label, icon: IIcon }) => {
+            const active = location === href || (href !== "/" && location.startsWith(href));
+            return (
+              <Link key={href} to={href} onClick={() => setSidebarOpen(false)}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+                  borderRadius: 7, marginBottom: 1, cursor: "pointer",
+                  background: active ? "rgba(224,32,32,0.1)" : "transparent",
+                  color: active ? "#e02020" : "#777",
+                  transition: "all 0.15s",
+                }}
+                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; }}
+                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                >
+                  <IIcon size={14} />
+                  <span style={{ fontSize: 13, fontWeight: 500 }}>{label}</span>
+                  {active && <ChevronRight size={11} style={{ marginLeft: "auto" }} />}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DashboardLayout({
   user, onLogout, children,
@@ -49,9 +146,13 @@ export default function DashboardLayout({
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: "12px 10px" }}>
-        {nav.map(({ href, label, icon: Icon }) => {
-          const active = location === href || (href !== "/" && location.startsWith(href));
+      <nav style={{ flex: 1, padding: "12px 10px", overflowY: "auto" }}>
+        {navGroups.map((item, i) => {
+          if (isNavGroup(item)) {
+            return <NavGroupItem key={i} group={item} location={location} setSidebarOpen={setSidebarOpen} />;
+          }
+          const { href, label, icon: Icon } = item as NavItem;
+          const active = location === href;
           return (
             <Link key={href} to={href} onClick={() => setSidebarOpen(false)}>
               <div style={{
@@ -121,7 +222,7 @@ export default function DashboardLayout({
       {sidebarOpen && (
         <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex" }}>
           <div onClick={() => setSidebarOpen(false)} style={{ flex: 1, background: "rgba(0,0,0,0.6)" }} />
-          <div style={{ width: 260, position: "absolute", left: 0, top: 0, bottom: 0 }}>
+          <div style={{ width: 260, position: "absolute", left: 0, top: 0, bottom: 0, overflowY: "auto" }}>
             <Sidebar />
           </div>
         </div>
