@@ -1,6 +1,7 @@
 import { Route, Switch } from "wouter";
 import { Provider } from "./components/provider";
 import { AgentFeedback } from "@runablehq/website-runtime";
+import { AnnouncementBanner } from "./components/AnnouncementBanner";
 
 import IndexPage from "./pages/index";
 import WelcomePage from "./pages/welcome";
@@ -25,6 +26,7 @@ import CarsForSalePage from "./pages/cars-for-sale";
 function App() {
   return (
     <Provider>
+      <AnnouncementBanner />
       <Switch>
         {/* Public */}
         <Route path="/" component={IndexPage} />

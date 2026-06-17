@@ -173,4 +173,17 @@ export const carInventory = sqliteTable("car_inventory", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
+// Site-wide Announcements (pushed by super admin to frontend)
+export const announcements = sqliteTable("announcements", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: text("type", { enum: ["info", "warning", "promo", "alert"] }).notNull().default("info"),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  link: text("link"),           // optional CTA link
+  linkLabel: text("link_label"), // e.g. "Browse Inventory"
+  expiresAt: integer("expires_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
 export * from "./auth-schema";

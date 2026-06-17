@@ -1,7 +1,7 @@
 [package]
-name = "sonnietechnologyllc/librepair"
-version = "0.1.27"
-description = "LIBrepair — On-Demand Auto Repair Platform"
+name = "sonnietechnologyllc/librepair-admin"
+version = "0.1.1"
+description = "LibRepair Super Admin Panel"
 entrypoint = "server"
 
 [dependencies]
