@@ -482,11 +482,14 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const [form, setForm] = useState({
     customerId: "",
     vehicleId: "",
+    serviceId: "",
+    mechanicId: "",
     serviceType: "in-shop",
     status: "pending",
     scheduledAt: "",
     scheduledTime: "09:00",
     notes: "",
+    mechanicNotes: "",
     customerAddress: "",
     totalCost: "",
     bookingFee: "25",
@@ -508,8 +511,20 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
     enabled: !!form.customerId,
   });
 
+  const { data: servicesData } = useQuery({
+    queryKey: ["services"],
+    queryFn: () => api.get("/superadmin/services"),
+  });
+
+  const { data: mechanicsData } = useQuery({
+    queryKey: ["mechanics"],
+    queryFn: () => api.get("/superadmin/mechanics"),
+  });
+
   const customers: Customer[] = (usersData?.users ?? []).filter((u: Customer & { role: string }) => u.role === "customer");
   const vehicles: Vehicle[] = vehiclesData?.vehicles ?? [];
+  const services: any[] = (servicesData?.services ?? []).filter((s: any) => s.isActive !== false);
+  const mechanics: any[] = mechanicsData?.mechanics ?? [];
 
   const filteredCustomers = customers.filter(c =>
     !customerSearch ||
@@ -518,6 +533,15 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   );
 
   const selectedCustomer = customers.find(c => c.id === form.customerId);
+
+  // Auto-fill cost from selected service
+  function onServiceChange(serviceId: string) {
+    set("serviceId", serviceId);
+    if (serviceId) {
+      const svc = services.find((s: any) => String(s.id) === serviceId);
+      if (svc?.price && !form.totalCost) set("totalCost", String(svc.price));
+    }
+  }
 
   async function handleSubmit() {
     if (!form.customerId) { setError("Please select a customer"); return; }
@@ -529,10 +553,13 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
       await api.post("/superadmin/appointments", {
         customerId: form.customerId,
         vehicleId: form.vehicleId || undefined,
+        serviceId: form.serviceId ? Number(form.serviceId) : undefined,
+        mechanicId: form.mechanicId ? Number(form.mechanicId) : undefined,
         serviceType: form.serviceType,
         status: form.status,
         scheduledAt: dateTime.toISOString(),
         notes: form.notes || undefined,
+        mechanicNotes: form.mechanicNotes || undefined,
         customerAddress: form.serviceType === "home-service" ? form.customerAddress : undefined,
         totalCost: form.totalCost ? Number(form.totalCost) : undefined,
         bookingFee: Number(form.bookingFee),
@@ -630,6 +657,32 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
             </div>
           )}
 
+          {/* Service + Mechanic */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="form-group">
+              <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Wrench size={12} /> Service <span style={{ color: "#444", fontWeight: 400 }}>(optional)</span>
+              </label>
+              <select value={form.serviceId} onChange={e => onServiceChange(e.target.value)}>
+                <option value="">— Select a service —</option>
+                {services.map((s: any) => (
+                  <option key={s.id} value={s.id}>{s.name}{s.price ? ` — $${s.price}` : ""}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <User size={12} /> Assign Mechanic <span style={{ color: "#444", fontWeight: 400 }}>(optional)</span>
+              </label>
+              <select value={form.mechanicId} onChange={e => set("mechanicId", e.target.value)}>
+                <option value="">— Unassigned —</option>
+                {mechanics.map((m: any) => (
+                  <option key={m.id} value={m.id}>{m.name ?? m.email}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Date & Time */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div className="form-group">
@@ -692,8 +745,14 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
 
           {/* Notes */}
           <div className="form-group">
-            <label className="form-label">Notes</label>
-            <textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={3} placeholder="Issue description, special instructions..." />
+            <label className="form-label">Customer Notes</label>
+            <textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={2} placeholder="Issue description, special instructions..." />
+          </div>
+          <div className="form-group">
+            <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Wrench size={12} /> Mechanic Notes <span style={{ color: "#444", fontWeight: 400 }}>(internal)</span>
+            </label>
+            <textarea value={form.mechanicNotes} onChange={e => set("mechanicNotes", e.target.value)} rows={2} placeholder="Internal notes for the mechanic..." />
           </div>
         </div>
 

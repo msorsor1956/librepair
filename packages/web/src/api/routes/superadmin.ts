@@ -899,10 +899,13 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     const [created] = await db.insert(schema.appointments).values({
       customerId: body.customerId,
       vehicleId: body.vehicleId ? Number(body.vehicleId) : null,
+      serviceId: body.serviceId ? Number(body.serviceId) : null,
+      mechanicId: body.mechanicId ? Number(body.mechanicId) : null,
       serviceType: body.serviceType ?? "in-shop",
       status: body.status ?? "pending",
       scheduledAt: new Date(body.scheduledAt),
       notes: body.notes ?? null,
+      mechanicNotes: body.mechanicNotes ?? null,
       customerAddress: body.customerAddress ?? null,
       totalCost: body.totalCost ? Number(body.totalCost) : null,
       bookingFee: body.bookingFee ? Number(body.bookingFee) : 25,
