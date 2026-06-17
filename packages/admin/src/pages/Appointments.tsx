@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { Plus, X, Search, RefreshCw, CalendarPlus, Clock, User, Car, Wrench, MapPin, DollarSign, AlertCircle } from "lucide-react";
+import {
+  Plus, X, Search, RefreshCw, CalendarPlus, Clock, User, Car,
+  Wrench, MapPin, DollarSign, AlertCircle, CreditCard, Calendar,
+  ExternalLink, CheckCircle, Copy,
+} from "lucide-react";
 
 type Appointment = {
   id: number;
@@ -11,8 +15,13 @@ type Appointment = {
   completedAt?: string;
   totalCost?: number;
   notes?: string;
+  stripePaymentLinkId?: string;
+  stripePaymentUrl?: string;
+  calendarEventId?: string;
+  calendarEventUrl?: string;
   customerName?: string;
   customerEmail?: string;
+  customerId?: string;
   serviceName?: string;
   vehicleMake?: string;
   vehicleModel?: string;
@@ -21,11 +30,11 @@ type Appointment = {
 };
 
 const statusColors: Record<string, { badge: string; label: string }> = {
-  pending:     { badge: "badge-yellow", label: "Pending" },
-  confirmed:   { badge: "badge-blue",   label: "Confirmed" },
-  "in-progress": { badge: "badge-purple", label: "In Progress" },
-  completed:   { badge: "badge-green",  label: "Completed" },
-  cancelled:   { badge: "badge-red",    label: "Cancelled" },
+  pending:       { badge: "badge-yellow",  label: "Pending" },
+  confirmed:     { badge: "badge-blue",    label: "Confirmed" },
+  "in-progress": { badge: "badge-purple",  label: "In Progress" },
+  completed:     { badge: "badge-green",   label: "Completed" },
+  cancelled:     { badge: "badge-red",     label: "Cancelled" },
 };
 
 export default function AppointmentsPage() {
@@ -33,6 +42,8 @@ export default function AppointmentsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+  const [copied, setCopied] = useState<number | null>(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["appointments"],
@@ -64,6 +75,38 @@ export default function AppointmentsPage() {
     completed: appointments.filter(a => a.status === "completed").length,
     cancelled: appointments.filter(a => a.status === "cancelled").length,
   };
+
+  async function createPaymentLink(appt: Appointment) {
+    setActionLoading(p => ({ ...p, [`pay-${appt.id}`]: true }));
+    try {
+      await api.post(`/superadmin/appointments/${appt.id}/payment`, {});
+      await qc.invalidateQueries({ queryKey: ["appointments"] });
+    } catch (e: any) {
+      alert("Failed to create payment link: " + (e.message ?? "Unknown error"));
+    } finally {
+      setActionLoading(p => ({ ...p, [`pay-${appt.id}`]: false }));
+    }
+  }
+
+  async function createCalendarEvent(appt: Appointment) {
+    setActionLoading(p => ({ ...p, [`cal-${appt.id}`]: true }));
+    try {
+      await api.post(`/superadmin/appointments/${appt.id}/calendar`, {});
+      await qc.invalidateQueries({ queryKey: ["appointments"] });
+    } catch (e: any) {
+      alert("Failed to create calendar event: " + (e.message ?? "Unknown error"));
+    } finally {
+      setActionLoading(p => ({ ...p, [`cal-${appt.id}`]: false }));
+    }
+  }
+
+  function copyPaymentLink(appt: Appointment) {
+    if (appt.stripePaymentUrl) {
+      navigator.clipboard.writeText(appt.stripePaymentUrl);
+      setCopied(appt.id);
+      setTimeout(() => setCopied(null), 2000);
+    }
+  }
 
   return (
     <div style={{ padding: 32 }}>
@@ -128,6 +171,8 @@ export default function AppointmentsPage() {
                   <th>Scheduled</th>
                   <th>Cost</th>
                   <th>Status</th>
+                  <th>Payment</th>
+                  <th>Calendar</th>
                   <th>Update</th>
                 </tr>
               </thead>
@@ -172,6 +217,68 @@ export default function AppointmentsPage() {
                         {statusColors[a.status]?.label ?? a.status}
                       </span>
                     </td>
+
+                    {/* Payment column */}
+                    <td>
+                      {a.stripePaymentUrl ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <span style={{ padding: "3px 7px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }}>
+                            <CheckCircle size={10} style={{ display: "inline", marginRight: 3 }} />
+                            Link Ready
+                          </span>
+                          <button
+                            title="Copy payment link"
+                            onClick={() => copyPaymentLink(a)}
+                            style={{ background: "none", border: "none", cursor: "pointer", color: copied === a.id ? "#4ade80" : "#555", padding: 3 }}
+                          >
+                            <Copy size={12} />
+                          </button>
+                          <a href={a.stripePaymentUrl} target="_blank" rel="noreferrer" style={{ color: "#555" }} title="Open payment link">
+                            <ExternalLink size={12} />
+                          </a>
+                        </div>
+                      ) : (
+                        <button
+                          className="btn btn-ghost"
+                          onClick={() => createPaymentLink(a)}
+                          disabled={actionLoading[`pay-${a.id}`]}
+                          style={{ padding: "5px 10px", fontSize: 11, display: "flex", alignItems: "center", gap: 5 }}
+                          title="Create Stripe payment link"
+                        >
+                          <CreditCard size={11} />
+                          {actionLoading[`pay-${a.id}`] ? "..." : "Charge"}
+                        </button>
+                      )}
+                    </td>
+
+                    {/* Calendar column */}
+                    <td>
+                      {a.calendarEventId ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <span style={{ padding: "3px 7px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: "rgba(59,130,246,0.12)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.2)" }}>
+                            <CheckCircle size={10} style={{ display: "inline", marginRight: 3 }} />
+                            Scheduled
+                          </span>
+                          {a.calendarEventUrl && (
+                            <a href={a.calendarEventUrl} target="_blank" rel="noreferrer" style={{ color: "#555" }} title="View in Google Calendar">
+                              <ExternalLink size={12} />
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          className="btn btn-ghost"
+                          onClick={() => createCalendarEvent(a)}
+                          disabled={actionLoading[`cal-${a.id}`]}
+                          style={{ padding: "5px 10px", fontSize: 11, display: "flex", alignItems: "center", gap: 5 }}
+                          title="Add to Google Calendar"
+                        >
+                          <Calendar size={11} />
+                          {actionLoading[`cal-${a.id}`] ? "..." : "Add to Cal"}
+                        </button>
+                      )}
+                    </td>
+
                     <td>
                       <select
                         value={a.status}
@@ -193,11 +300,17 @@ export default function AppointmentsPage() {
         )}
       </div>
 
-      {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreated={() => { qc.invalidateQueries({ queryKey: ["appointments"] }); setShowCreate(false); }} />}
+      {showCreate && (
+        <CreateModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => { qc.invalidateQueries({ queryKey: ["appointments"] }); setShowCreate(false); }}
+        />
+      )}
     </div>
   );
 }
 
+// ─── Create Appointment Modal ─────────────────────────────────────────────────
 function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({
     customerId: "",
@@ -283,7 +396,6 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
         )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
           {/* Customer select */}
           <div className="form-group">
             <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -330,7 +442,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
             )}
           </div>
 
-          {/* Vehicle (if customer selected) */}
+          {/* Vehicle */}
           {form.customerId && (
             <div className="form-group">
               <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -387,7 +499,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
             </div>
           </div>
 
-          {/* Home address (if home service) */}
+          {/* Home address */}
           {form.serviceType === "home-service" && (
             <div className="form-group">
               <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>

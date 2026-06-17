@@ -5,6 +5,10 @@ import { eq, desc, and, inArray } from "drizzle-orm";
 import { authMiddleware, requireAuth } from "../middleware/auth";
 import type { HonoVariables } from "../types";
 import { auth } from "../auth";
+import Stripe from "stripe";
+import { execSync } from "child_process";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", { apiVersion: "2025-05-28.basil" });
 
 const SUPER_ADMIN_EMAILS = ["m.sorsor@sonnietech.com", "sonnietechnologyllc@gmail.com"];
 
@@ -425,8 +429,13 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
         completedAt: schema.appointments.completedAt,
         totalCost: schema.appointments.totalCost,
         notes: schema.appointments.notes,
+        stripePaymentLinkId: schema.appointments.stripePaymentLinkId,
+        stripePaymentUrl: schema.appointments.stripePaymentUrl,
+        calendarEventId: schema.appointments.calendarEventId,
+        calendarEventUrl: schema.appointments.calendarEventUrl,
         customerName: schema.users.name,
         customerEmail: schema.users.email,
+        customerId: schema.appointments.customerId,
         serviceName: schema.services.name,
         vehicleMake: schema.vehicles.make,
         vehicleModel: schema.vehicles.model,
@@ -491,6 +500,155 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     const [updated] = await db.update(schema.appointments).set(updates).where(eq(schema.appointments.id, id)).returning();
     if (!updated) return c.json({ message: "Not found" }, 404);
     return c.json(updated, 200);
+  })
+
+  /* ══════════════════════════════════════════════════
+     STRIPE — Create Payment Link for Appointment
+  ══════════════════════════════════════════════════ */
+  .post("/appointments/:id/payment", requireAuth, requireSuperAdmin, async (c) => {
+    const id = Number(c.req.param("id"));
+    const [appt] = await db.select().from(schema.appointments)
+      .leftJoin(schema.users, eq(schema.appointments.customerId, schema.users.id))
+      .where(eq(schema.appointments.id, id));
+    if (!appt) return c.json({ message: "Appointment not found" }, 404);
+
+    const appointment = appt.appointments;
+    const customer = appt.users;
+    const amount = appointment.totalCost ?? appointment.bookingFee ?? 25;
+
+    // Create a Stripe Price on-the-fly
+    const price = await stripe.prices.create({
+      currency: "usd",
+      unit_amount: Math.round(amount * 100),
+      product_data: {
+        name: `LibRepair Service – Appointment #${id}`,
+      },
+    });
+
+    // Create Stripe Payment Link
+    const paymentLink = await stripe.paymentLinks.create({
+      line_items: [{ price: price.id, quantity: 1 }],
+      metadata: { appointmentId: String(id) },
+      after_completion: { type: "hosted_confirmation", hosted_confirmation: { custom_message: "Thank you! Your appointment is confirmed." } },
+    });
+
+    // Store in DB
+    await db.update(schema.appointments).set({
+      stripePaymentLinkId: paymentLink.id,
+      stripePaymentUrl: paymentLink.url,
+    }).where(eq(schema.appointments.id, id));
+
+    // Also create a pending payment record
+    await db.insert(schema.payments).values({
+      appointmentId: id,
+      customerId: appointment.customerId,
+      amount,
+      method: "stripe",
+      status: "pending",
+      transactionId: paymentLink.id,
+      type: appointment.bookingFee && !appointment.totalCost ? "booking_fee" : "full",
+    }).catch(() => {});
+
+    return c.json({ paymentUrl: paymentLink.url, paymentLinkId: paymentLink.id }, 201);
+  })
+
+  /* ══════════════════════════════════════════════════
+     STRIPE — Webhook (payment confirmed → update DB)
+  ══════════════════════════════════════════════════ */
+  .post("/stripe/webhook", async (c) => {
+    const rawBody = await c.req.text();
+    const sig = c.req.header("stripe-signature") ?? "";
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+
+    let event: Stripe.Event;
+    try {
+      if (webhookSecret) {
+        event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+      } else {
+        event = JSON.parse(rawBody) as Stripe.Event;
+      }
+    } catch (err: any) {
+      return c.json({ message: `Webhook error: ${err.message}` }, 400);
+    }
+
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const appointmentId = session.metadata?.appointmentId;
+      if (appointmentId) {
+        const apptId = Number(appointmentId);
+        await db.update(schema.appointments)
+          .set({ status: "confirmed", updatedAt: new Date() })
+          .where(eq(schema.appointments.id, apptId));
+        await db.update(schema.payments)
+          .set({ status: "paid" })
+          .where(eq(schema.payments.appointmentId, apptId));
+      }
+    }
+    return c.json({ received: true }, 200);
+  })
+
+  /* ══════════════════════════════════════════════════
+     GOOGLE CALENDAR — Create Event for Appointment
+  ══════════════════════════════════════════════════ */
+  .post("/appointments/:id/calendar", requireAuth, requireSuperAdmin, async (c) => {
+    const id = Number(c.req.param("id"));
+    const rows = await db
+      .select({
+        appointment: schema.appointments,
+        customer: schema.users,
+        service: schema.services,
+        vehicle: schema.vehicles,
+      })
+      .from(schema.appointments)
+      .leftJoin(schema.users, eq(schema.appointments.customerId, schema.users.id))
+      .leftJoin(schema.services, eq(schema.appointments.serviceId, schema.services.id))
+      .leftJoin(schema.vehicles, eq(schema.appointments.vehicleId, schema.vehicles.id))
+      .where(eq(schema.appointments.id, id));
+
+    if (!rows.length) return c.json({ message: "Appointment not found" }, 404);
+    const { appointment, customer, service, vehicle } = rows[0];
+
+    const start = new Date(appointment.scheduledAt);
+    const end = new Date(start.getTime() + 60 * 60 * 1000); // 1 hour default
+    const fmt = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, "-05:00").replace("Z", "").slice(0, 19) + "-05:00";
+
+    const summary = `LibRepair: ${service?.name ?? "Service"} – ${customer?.name ?? "Customer"}`;
+    const description = [
+      `Customer: ${customer?.name ?? "N/A"} (${customer?.email ?? ""})`,
+      vehicle ? `Vehicle: ${vehicle.year} ${vehicle.make} ${vehicle.model}` : "",
+      appointment.notes ? `Notes: ${appointment.notes}` : "",
+      appointment.customerAddress ? `Address: ${appointment.customerAddress}` : "",
+    ].filter(Boolean).join("\n");
+
+    const props = JSON.stringify({
+      summary,
+      eventStartDate: fmt(start),
+      eventEndDate: fmt(end),
+      description,
+      ...(customer?.email ? { attendees: [customer.email] } : {}),
+    });
+
+    let result: any;
+    try {
+      const out = execSync(`connector run google_calendar google_calendar-create-event '${props.replace(/'/g, "'\\''")}'`, {
+        timeout: 30000,
+        encoding: "utf8",
+      });
+      result = JSON.parse(out);
+    } catch (err: any) {
+      console.error("Google Calendar error:", err.message);
+      return c.json({ message: "Failed to create calendar event", error: err.message }, 500);
+    }
+
+    const eventId = result?.id ?? result?.eventId ?? null;
+    const eventUrl = result?.htmlLink ?? null;
+
+    await db.update(schema.appointments).set({
+      calendarEventId: eventId,
+      calendarEventUrl: eventUrl,
+    }).where(eq(schema.appointments.id, id));
+
+    return c.json({ eventId, eventUrl }, 201);
   });
 
 function parsePhotos(listing: any) {

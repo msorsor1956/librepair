@@ -69,6 +69,10 @@ export const appointments = sqliteTable("appointments", {
   customerAddress: text("customer_address"),
   totalCost: real("total_cost"),
   bookingFee: real("booking_fee").default(25),
+  stripePaymentLinkId: text("stripe_payment_link_id"),
+  stripePaymentUrl: text("stripe_payment_url"),
+  calendarEventId: text("calendar_event_id"),
+  calendarEventUrl: text("calendar_event_url"),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
