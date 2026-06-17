@@ -441,6 +441,46 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     return c.json({ appointments: rows }, 200);
   })
 
+  /* ══════════════════════════════════════════════════
+     VEHICLES
+  ══════════════════════════════════════════════════ */
+  .get("/vehicles", requireAuth, requireSuperAdmin, async (c) => {
+    const userId = c.req.query("userId");
+    const rows = userId
+      ? await db.select().from(schema.vehicles).where(eq(schema.vehicles.userId, userId))
+      : await db.select().from(schema.vehicles);
+    return c.json({ vehicles: rows }, 200);
+  })
+
+  /* ══════════════════════════════════════════════════
+     APPOINTMENTS
+  ══════════════════════════════════════════════════ */
+  .post("/appointments", requireAuth, requireSuperAdmin, async (c) => {
+    const body = await c.req.json();
+    if (!body.customerId || !body.scheduledAt) {
+      return c.json({ message: "customerId and scheduledAt required" }, 400);
+    }
+    const [created] = await db.insert(schema.appointments).values({
+      customerId: body.customerId,
+      vehicleId: body.vehicleId ? Number(body.vehicleId) : null,
+      serviceType: body.serviceType ?? "in-shop",
+      status: body.status ?? "pending",
+      scheduledAt: new Date(body.scheduledAt),
+      notes: body.notes ?? null,
+      customerAddress: body.customerAddress ?? null,
+      totalCost: body.totalCost ? Number(body.totalCost) : null,
+      bookingFee: body.bookingFee ? Number(body.bookingFee) : 25,
+    }).returning();
+    // notify customer
+    await db.insert(schema.notifications).values({
+      userId: body.customerId,
+      title: "Appointment Scheduled",
+      message: `Your appointment has been scheduled for ${new Date(body.scheduledAt).toLocaleDateString()}. ${body.notes ? "Note: " + body.notes : ""}`,
+      type: "system",
+    }).catch(() => {});
+    return c.json(created, 201);
+  })
+
   .patch("/appointments/:id", requireAuth, requireSuperAdmin, async (c) => {
     const id = c.req.param("id");
     const body = await c.req.json();
