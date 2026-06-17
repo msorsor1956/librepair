@@ -11,6 +11,7 @@ import SignInGooglePage from "./pages/sign-in-google";
 import SignInPhonePage from "./pages/sign-in-phone";
 import SignUpPhonePage from "./pages/sign-up-phone";
 import ForgotPasswordPage from "./pages/forgot-password";
+import ResetPasswordPage from "./pages/reset-password";
 import DashboardPage from "./pages/dashboard";
 import CustomerDashboardPage from "./pages/customer-dashboard";
 import VehiclesPage from "./pages/vehicles";
@@ -39,6 +40,7 @@ function App() {
         <Route path="/sign-in/phone" component={SignInPhonePage} />
         <Route path="/sign-up/phone" component={SignUpPhonePage} />
         <Route path="/forgot-password" component={ForgotPasswordPage} />
+        <Route path="/reset-password" component={ResetPasswordPage} />
 
         {/* Customer */}
         <Route path="/customer/dashboard" component={CustomerDashboardPage} />

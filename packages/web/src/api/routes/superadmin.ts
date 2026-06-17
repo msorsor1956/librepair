@@ -114,7 +114,10 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     if (existing) return c.json({ message: "Email already registered" }, 409);
 
     const role = body.role ?? "customer";
-    const tempPassword = body.password ?? "TempPass123!";
+
+    // Generate a secure random temp password (user will be prompted to change it)
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
+    const tempPassword = Array.from({ length: 14 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 
     const signupResult = await auth.api.signUpEmail({
       body: { email: body.email, password: tempPassword, name: body.name },
@@ -128,15 +131,104 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
       updatedAt: new Date(),
     }).where(eq(schema.users.id, signupResult.user.id)).returning();
 
-    // Send welcome notification
+    // Save in-app notification
     await db.insert(schema.notifications).values({
       userId: signupResult.user.id,
       title: "Welcome to LIBrepair!",
-      message: `Your account has been created. Role: ${role}. ${body.password ? "" : "Temporary password: " + tempPassword}`,
+      message: `Your account has been created as ${role}. Please check your email to set your password.`,
       type: "system",
     });
 
-    return c.json({ user: updated, tempPassword: body.password ? undefined : tempPassword }, 201);
+    const frontendUrl = process.env.VITE_FRONTEND_URL ?? "https://librepair.wasmer.app";
+    const sendEmail = body.sendEmail !== false; // default true
+    const sendSms = body.sendSms === true && !!body.phone;
+    let emailSent = false;
+    let smsSent = false;
+
+    // --- Send password-set email via better-auth reset flow ---
+    if (sendEmail) {
+      try {
+        await auth.api.requestPasswordReset({
+          body: {
+            email: body.email,
+            redirectTo: `${frontendUrl}/reset-password`,
+          },
+        });
+        emailSent = true;
+      } catch (e) {
+        console.error("Failed to send password reset email:", e);
+      }
+    }
+
+    // --- Send SMS via connector (Twilio) ---
+    if (sendSms && body.phone) {
+      try {
+        const phone = body.phone.replace(/\D/g, "");
+        const e164 = phone.startsWith("1") ? `+${phone}` : `+1${phone}`;
+        execSync(
+          `connector run twilio send_sms --to ${JSON.stringify(e164)} --body ${JSON.stringify(
+            `Hi ${body.name}! Your LIBrepair account has been created. Check your email (${body.email}) for a link to set your password. Questions? Reply STOP to opt out.`
+          )}`,
+          { stdio: "ignore", timeout: 15000 }
+        );
+        smsSent = true;
+      } catch (e) {
+        console.error("Failed to send SMS:", e);
+      }
+    }
+
+    return c.json({
+      user: updated,
+      emailSent,
+      smsSent,
+      message: emailSent
+        ? "User created. Password-set email sent."
+        : "User created. Email delivery skipped.",
+    }, 201);
+  })
+
+  // Send password reset email to existing user
+  .post("/users/:id/reset-password", requireAuth, requireSuperAdmin, async (c) => {
+    const id = c.req.param("id");
+    const body = await c.req.json().catch(() => ({}));
+    const [user] = await db.select().from(schema.users).where(eq(schema.users.id, id));
+    if (!user) return c.json({ message: "User not found" }, 404);
+
+    const frontendUrl = process.env.VITE_FRONTEND_URL ?? "https://librepair.wasmer.app";
+    let emailSent = false;
+    let smsSent = false;
+
+    // Send email
+    try {
+      await auth.api.requestPasswordReset({
+        body: {
+          email: user.email,
+          redirectTo: `${frontendUrl}/reset-password`,
+        },
+      });
+      emailSent = true;
+    } catch (e) {
+      console.error("Failed to send reset email:", e);
+    }
+
+    // Send SMS if requested
+    if (body.sendSms && user.phone) {
+      try {
+        const phone = user.phone.replace(/\D/g, "");
+        const e164 = phone.startsWith("1") ? `+${phone}` : `+1${phone}`;
+        execSync(
+          `connector run twilio send_sms --to ${JSON.stringify(e164)} --body ${JSON.stringify(
+            `Hi ${user.name}! A password reset link has been sent to ${user.email}. Check your email to set a new password.`
+          )}`,
+          { stdio: "ignore", timeout: 15000 }
+        );
+        smsSent = true;
+      } catch (e) {
+        console.error("Failed to send SMS:", e);
+      }
+    }
+
+    return c.json({ emailSent, smsSent, message: emailSent ? "Password reset email sent." : "Failed to send email." }, 200);
   })
 
   // Update user (role, profile, activate/deactivate)
