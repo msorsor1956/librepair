@@ -20,6 +20,7 @@ import ProfilePage from "./pages/profile";
 import AdminPage from "./pages/admin";
 import PaymentsPage from "./pages/payments";
 import MechanicPage from "./pages/mechanic";
+import CarsForSalePage from "./pages/cars-for-sale";
 
 function App() {
   return (
@@ -50,6 +51,7 @@ function App() {
         <Route path="/profile" component={ProfilePage} />
         <Route path="/admin" component={AdminPage} />
         <Route path="/mechanic" component={MechanicPage} />
+        <Route path="/cars-for-sale" component={CarsForSalePage} />
       </Switch>
       {import.meta.env.DEV && <AgentFeedback />}
     </Provider>

@@ -13,6 +13,7 @@ import { partsRouter } from "./routes/parts";
 import { paymentsRouter } from "./routes/payments";
 import { phoneAuthRouter } from "./routes/phone-auth";
 import { customerRouter } from "./routes/customer";
+import { inventoryRouter } from "./routes/inventory";
 
 const app = new Hono()
   .use(cors({ origin: (origin) => { const allowed = ["https://librepair.wasmer.app", "https://librepair-sonnietechnologyllc.wasmer.app"]; return (origin && allowed.some(a => origin.startsWith(a))) ? origin : (origin ?? "*"); }, credentials: true, exposeHeaders: ["set-auth-token"] }))
@@ -31,7 +32,8 @@ const app = new Hono()
   .route("/parts", partsRouter)
   .route("/payments", paymentsRouter)
   .route("/phone-auth", phoneAuthRouter)
-  .route("/customer", customerRouter);
+  .route("/customer", customerRouter)
+  .route("/inventory", inventoryRouter);
 
 export type AppType = typeof app;
 export default app;

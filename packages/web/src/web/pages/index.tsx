@@ -444,6 +444,41 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Cars for Sale CTA */}
+      <section className="py-20 px-6 md:px-10 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 opacity-5" style={{ background: "linear-gradient(135deg, #e02020 0%, transparent 60%)" }} />
+        </div>
+        <div className="max-w-[1280px] mx-auto">
+          <motion.div {...fadeUp}
+            className="rounded-2xl p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden"
+            style={{ background: "linear-gradient(135deg, #1a0a0a 0%, var(--color-surface) 100%)", border: "1px solid rgba(224,32,32,0.25)" }}>
+            <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10 pointer-events-none"
+              style={{ background: "radial-gradient(circle, #e02020, transparent 70%)", transform: "translate(30%, -30%)" }} />
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4"
+                style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "var(--color-red)", border: "1px solid rgba(224,32,32,0.2)" }}>
+                <Car size={11} /> Vehicles For Sale
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold mb-3" style={{ fontFamily: "Rajdhani" }}>
+                LOOKING FOR YOUR<br /><span className="text-gradient">NEXT VEHICLE?</span>
+              </h2>
+              <p className="max-w-md" style={{ color: "var(--color-silver)" }}>
+                Browse our certified pre-owned inventory. Every vehicle inspected and serviced by our expert mechanics. Quality you can trust.
+              </p>
+            </div>
+            <div className="flex-shrink-0">
+              <Link to="/cars-for-sale">
+                <button className="flex items-center gap-2 px-8 py-4 rounded-xl font-semibold text-white text-base transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: "var(--color-red)" }}>
+                  Browse Inventory <ArrowRight size={18} />
+                </button>
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Contact */}
       <section id="contact" className="py-24 px-6 md:px-10" style={{ backgroundColor: "var(--color-surface)" }}>
         <div className="max-w-[1280px] mx-auto text-center">

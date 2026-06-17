@@ -847,8 +847,222 @@ function CustomerRow({ customer, isSuperAdmin }: { customer: any; isSuperAdmin: 
   );
 }
 
+/* ── Car Inventory Modal (add / edit) ── */
+function CarModal({ car, onClose, onSaved }: { car: any | null; onClose: () => void; onSaved: () => void }) {
+  const isEdit = !!car;
+  const emptyForm = {
+    title: "", make: "", model: "", year: new Date().getFullYear().toString(),
+    price: "", mileage: "0", color: "", condition: "good",
+    description: "", videoUrl: "", contactPhone: "", contactEmail: "",
+    status: "available", featured: false,
+    photos: ["", "", "", "", "", "", "", "", ""],
+  };
+  const [form, setForm] = useState(isEdit ? {
+    ...emptyForm,
+    title: car.title ?? "",
+    make: car.make ?? "",
+    model: car.model ?? "",
+    year: String(car.year ?? ""),
+    price: String(car.price ?? ""),
+    mileage: String(car.mileage ?? "0"),
+    color: car.color ?? "",
+    condition: car.condition ?? "good",
+    description: car.description ?? "",
+    videoUrl: car.videoUrl ?? "",
+    contactPhone: car.contactPhone ?? "",
+    contactEmail: car.contactEmail ?? "",
+    status: car.status ?? "available",
+    featured: car.featured ?? false,
+    photos: [...(car.photos ?? []), "", "", "", "", "", "", "", "", ""].slice(0, 9),
+  } : emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  function setPhoto(i: number, val: string) {
+    setForm((f) => {
+      const photos = [...f.photos];
+      photos[i] = val;
+      return { ...f, photos };
+    });
+  }
+
+  async function save() {
+    setSaving(true); setError("");
+    const photos = form.photos.filter((p) => p.trim() !== "");
+    const body = {
+      ...form,
+      year: parseInt(form.year),
+      price: parseFloat(form.price),
+      mileage: parseInt(form.mileage) || 0,
+      photos,
+    };
+    const url = isEdit ? `/api/inventory/${car.id}` : "/api/inventory";
+    const method = isEdit ? "PATCH" : "POST";
+    const r = await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await r.json();
+    if (!r.ok) { setError(data.message ?? "Error saving listing."); setSaving(false); return; }
+    onSaved();
+  }
+
+  const inputCls = "px-3 py-2.5 rounded-lg text-sm focus:outline-none w-full";
+  const inputStyle = { background: "var(--color-bg)", border: "1px solid var(--color-border)", color: "var(--color-primary)" };
+  const labelStyle = { color: "var(--color-muted)" };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4" style={{ backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-2xl rounded-2xl p-6 my-8"
+        style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-xl font-bold flex items-center gap-2" style={{ fontFamily: "Rajdhani", color: "var(--color-primary)" }}>
+            <Car size={20} style={{ color: "var(--color-red)" }} />
+            {isEdit ? "Edit Listing" : "Add New Listing"}
+          </h2>
+          <button onClick={onClose}><X size={18} style={{ color: "var(--color-muted)" }} /></button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Title */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium" style={labelStyle}>Listing Title *</label>
+            <input className={inputCls} style={inputStyle} placeholder="e.g. 2019 Toyota Camry SE — Clean Title" value={form.title} onChange={set("title")} />
+          </div>
+
+          {/* Make / Model / Year */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" style={labelStyle}>Make *</label>
+              <input className={inputCls} style={inputStyle} placeholder="Toyota" value={form.make} onChange={set("make")} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" style={labelStyle}>Model *</label>
+              <input className={inputCls} style={inputStyle} placeholder="Camry" value={form.model} onChange={set("model")} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" style={labelStyle}>Year *</label>
+              <input className={inputCls} style={inputStyle} type="number" placeholder="2019" value={form.year} onChange={set("year")} />
+            </div>
+          </div>
+
+          {/* Price / Mileage / Color */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" style={labelStyle}>Price ($) *</label>
+              <input className={inputCls} style={inputStyle} type="number" placeholder="15000" value={form.price} onChange={set("price")} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" style={labelStyle}>Mileage</label>
+              <input className={inputCls} style={inputStyle} type="number" placeholder="45000" value={form.mileage} onChange={set("mileage")} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" style={labelStyle}>Color</label>
+              <input className={inputCls} style={inputStyle} placeholder="Silver" value={form.color} onChange={set("color")} />
+            </div>
+          </div>
+
+          {/* Condition / Status / Featured */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" style={labelStyle}>Condition</label>
+              <select className={inputCls} style={inputStyle} value={form.condition} onChange={set("condition")}>
+                <option value="excellent">Excellent</option>
+                <option value="good">Good</option>
+                <option value="fair">Fair</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" style={labelStyle}>Status</label>
+              <select className={inputCls} style={inputStyle} value={form.status} onChange={set("status")}>
+                <option value="available">Available</option>
+                <option value="reserved">Reserved</option>
+                <option value="sold">Sold</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1 justify-end">
+              <label className="text-xs font-medium" style={labelStyle}>Featured?</label>
+              <button type="button" onClick={() => setForm((f) => ({ ...f, featured: !f.featured }))}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm"
+                style={inputStyle}>
+                {form.featured
+                  ? <ToggleRight size={20} style={{ color: "#22c55e" }} />
+                  : <ToggleLeft size={20} style={{ color: "var(--color-muted)" }} />}
+                <span style={{ color: form.featured ? "#22c55e" : "var(--color-muted)" }}>
+                  {form.featured ? "Yes" : "No"}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium" style={labelStyle}>Description</label>
+            <textarea className="px-3 py-2.5 rounded-lg text-sm resize-none focus:outline-none" style={inputStyle} rows={3}
+              placeholder="Describe the vehicle, features, history, etc."
+              value={form.description} onChange={set("description")} />
+          </div>
+
+          {/* Video URL */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium" style={labelStyle}>Video URL (YouTube or direct .mp4)</label>
+            <input className={inputCls} style={inputStyle} placeholder="https://youtube.com/watch?v=..." value={form.videoUrl} onChange={set("videoUrl")} />
+          </div>
+
+          {/* Photos */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium" style={labelStyle}>Photo URLs (up to 9)</label>
+            <div className="grid grid-cols-1 gap-2">
+              {form.photos.map((p, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-xs w-4 text-right flex-shrink-0" style={labelStyle}>{i + 1}.</span>
+                  <input
+                    className={inputCls} style={inputStyle}
+                    placeholder={`Photo ${i + 1} URL`}
+                    value={p}
+                    onChange={(e) => setPhoto(i, e.target.value)}
+                  />
+                  {p && <img src={p} alt="" className="w-10 h-7 object-cover rounded flex-shrink-0" onError={(e) => (e.currentTarget.style.display = "none")} />}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Contact */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" style={labelStyle}>Contact Phone</label>
+              <input className={inputCls} style={inputStyle} placeholder="+1 555 000 0000" value={form.contactPhone} onChange={set("contactPhone")} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" style={labelStyle}>Contact Email</label>
+              <input className={inputCls} style={inputStyle} placeholder="sales@librepair.com" value={form.contactEmail} onChange={set("contactEmail")} />
+            </div>
+          </div>
+        </div>
+
+        {error && <p className="text-xs mt-3" style={{ color: "#ef4444" }}>{error}</p>}
+
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold"
+            style={{ border: "1px solid var(--color-border)", color: "var(--color-muted)" }}>
+            Cancel
+          </button>
+          <button onClick={save} disabled={saving || !form.title || !form.make || !form.model || !form.price}
+            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+            style={{ backgroundColor: "var(--color-red)" }}>
+            {saving ? "Saving…" : isEdit ? "Save Changes" : "Add Listing"}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 /* ── MAIN ── */
-const TABS = ["Overview", "Services", "Appointments", "Customers", "Payments"] as const;
+const TABS = ["Overview", "Services", "Appointments", "Customers", "Payments", "Cars for Sale"] as const;
 type Tab = typeof TABS[number];
 
 export default function AdminPage() {
@@ -862,6 +1076,8 @@ export default function AdminPage() {
   const [addService, setAddService]     = useState(false);
   const [editApt, setEditApt]           = useState<any | null>(null);
   const [sellApt, setSellApt]           = useState<any | null>(null);
+  const [addCar, setAddCar]             = useState(false);
+  const [editCar, setEditCar]           = useState<any | null>(null);
 
   const { data: session } = useQuery({ queryKey: ["session"], queryFn: () => authClient.getSession() });
   const user = (session as any)?.data?.user;
@@ -912,12 +1128,21 @@ export default function AdminPage() {
     },
   });
 
+  const { data: inventoryData, refetch: refetchInventory } = useQuery({
+    queryKey: ["admin-inventory"],
+    queryFn: async () => {
+      const r = await fetch(`${import.meta.env.VITE_API_URL}/api/inventory`);
+      return r.json() as Promise<{ listings: any[] }>;
+    },
+  });
+
   const allUsers: any[]       = customersData?.users ?? [];
   const appointments: any[]   = appointmentsData?.appointments ?? [];
   const payments: any[]       = paymentsData?.payments ?? [];
   const services: any[]       = Array.isArray(servicesData) ? servicesData : [];
   const mechanics             = allUsers.filter((u) => ["mechanic", "admin"].includes(u.role));
   const customers             = allUsers.filter((u) => u.role === "customer");
+  const inventory: any[]      = inventoryData?.listings ?? [];
 
   const pending    = appointments.filter((a) => a.status === "pending").length;
   const inProgress = appointments.filter((a) => a.status === "in-progress").length;
@@ -1230,6 +1455,103 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ─── CARS FOR SALE TAB ─── */}
+        {tab === "Cars for Sale" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <h2 className="text-xl font-bold" style={{ fontFamily: "Rajdhani", color: "var(--color-primary)" }}>
+                Car Inventory ({inventory.length})
+              </h2>
+              <button onClick={() => setAddCar(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
+                style={{ backgroundColor: "var(--color-red)" }}>
+                <Plus size={15} /> Add Listing
+              </button>
+            </div>
+
+            {inventory.length === 0 ? (
+              <div className="text-center py-16 rounded-xl" style={{ border: "2px dashed var(--color-border)" }}>
+                <div className="text-5xl mb-3">🚗</div>
+                <p className="font-semibold mb-1" style={{ color: "var(--color-primary)" }}>No inventory yet</p>
+                <p className="text-sm mb-4" style={{ color: "var(--color-muted)" }}>Add your first car listing to get started.</p>
+                <button onClick={() => setAddCar(true)}
+                  className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
+                  style={{ backgroundColor: "var(--color-red)" }}>
+                  Add First Listing
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {inventory.map((car) => (
+                  <motion.div key={car.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                    className="rounded-xl overflow-hidden"
+                    style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+                    {/* Thumbnail */}
+                    <div className="relative h-40 bg-black">
+                      {car.photos?.length > 0 ? (
+                        <img src={car.photos[0]} alt={car.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-5xl">🚗</div>
+                      )}
+                      <div className="absolute top-2 left-2">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-bold capitalize"
+                          style={{
+                            backgroundColor: car.status === "available" ? "rgba(34,197,94,0.15)" : car.status === "sold" ? "rgba(224,32,32,0.15)" : "rgba(245,158,11,0.15)",
+                            color: car.status === "available" ? "#22c55e" : car.status === "sold" ? "#e02020" : "#f59e0b",
+                          }}>
+                          {car.status}
+                        </span>
+                      </div>
+                      {car.featured && (
+                        <div className="absolute top-2 right-2">
+                          <span className="px-2 py-0.5 rounded-full text-xs font-bold" style={{ backgroundColor: "rgba(212,160,23,0.15)", color: "#D4A017" }}>★ Featured</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <p className="font-bold text-sm leading-tight" style={{ fontFamily: "Rajdhani", color: "var(--color-primary)" }}>{car.title}</p>
+                        <span className="text-sm font-bold whitespace-nowrap" style={{ color: "var(--color-red)" }}>
+                          ${car.price?.toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-xs mb-3" style={{ color: "var(--color-muted)" }}>
+                        {car.year} · {car.make} {car.model} · {car.mileage?.toLocaleString()} mi
+                      </p>
+                      <div className="flex gap-2">
+                        <button onClick={() => setEditCar(car)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors"
+                          style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "var(--color-red)" }}>
+                          <Pencil size={11} /> Edit
+                        </button>
+                        <button onClick={async () => {
+                          if (!confirm("Toggle status?")) return;
+                          const next = car.status === "available" ? "sold" : "available";
+                          await apiFetch(`/api/inventory/${car.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }) });
+                          refetchInventory();
+                        }}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors"
+                          style={{ backgroundColor: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>
+                          {car.status === "available" ? <XCircle size={11} /> : <CheckCircle size={11} />}
+                          {car.status === "available" ? "Mark Sold" : "Mark Available"}
+                        </button>
+                        <button onClick={async () => {
+                          if (!confirm(`Delete "${car.title}"?`)) return;
+                          await apiFetch(`/api/inventory/${car.id}`, { method: "DELETE" });
+                          refetchInventory();
+                        }}
+                          className="p-2 rounded-lg transition-colors hover:bg-red-500/10">
+                          <Trash2 size={14} style={{ color: "#ef4444" }} />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
       </motion.div>
 
       {/* Modals */}
@@ -1242,6 +1564,13 @@ export default function AdminPage() {
         {editService && <ServiceModal service={editService} onClose={() => setEditService(null)} />}
         {editApt     && <EditAppointmentModal apt={editApt} services={services} onClose={() => setEditApt(null)} />}
         {sellApt     && <SellModal apt={sellApt} onClose={() => setSellApt(null)} />}
+        {(addCar || editCar) && (
+          <CarModal
+            car={editCar}
+            onClose={() => { setAddCar(false); setEditCar(null); }}
+            onSaved={() => { setAddCar(false); setEditCar(null); refetchInventory(); }}
+          />
+        )}
       </AnimatePresence>
     </DashboardLayout>
   );

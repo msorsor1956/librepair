@@ -151,4 +151,26 @@ export const notifications = sqliteTable("notifications", {
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
+// Car Inventory (Vehicles for Sale)
+export const carInventory = sqliteTable("car_inventory", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  make: text("make").notNull(),
+  model: text("model").notNull(),
+  year: integer("year").notNull(),
+  price: real("price").notNull(),
+  mileage: integer("mileage").default(0),
+  color: text("color"),
+  condition: text("condition", { enum: ["excellent", "good", "fair"] }).notNull().default("good"),
+  description: text("description"),
+  videoUrl: text("video_url"),
+  photos: text("photos").default("[]"), // JSON array of up to 9 photo URLs
+  contactPhone: text("contact_phone"),
+  contactEmail: text("contact_email"),
+  status: text("status", { enum: ["available", "sold", "reserved"] }).notNull().default("available"),
+  featured: integer("featured", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
 export * from "./auth-schema";
