@@ -4,7 +4,8 @@ import { api } from "../lib/api";
 import { Plus, X, Pencil, Trash2, Star, Eye, EyeOff } from "lucide-react";
 
 type Listing = {
-  id: number; title: string; make: string; model: string; year: number;
+  id: number; stockNumber?: string; inventoryId?: string;
+  title: string; make: string; model: string; year: number;
   price: number; mileage: number; color?: string; condition: string;
   description?: string; videoUrl?: string; photos: string[];
   contactPhone?: string; contactEmail?: string; status: string;
@@ -120,7 +121,21 @@ export default function InventoryPage() {
               </div>
 
               <div style={{ padding: 16 }}>
-                <div style={{ fontFamily: "Rajdhani", fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{car.title}</div>
+                <div style={{ fontFamily: "Rajdhani", fontSize: 16, fontWeight: 700, marginBottom: 2 }}>{car.title}</div>
+                {(car.stockNumber || car.inventoryId) && (
+                  <div style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+                    {car.stockNumber && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "#e02020", background: "rgba(224,32,32,0.1)", border: "1px solid rgba(224,32,32,0.2)", borderRadius: 4, padding: "2px 6px", letterSpacing: "0.05em" }}>
+                        STK# {car.stockNumber}
+                      </span>
+                    )}
+                    {car.inventoryId && (
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "#888", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, padding: "2px 6px", letterSpacing: "0.04em" }}>
+                        ID# {car.inventoryId}
+                      </span>
+                    )}
+                  </div>
+                )}
                 <div style={{ color: "#555", fontSize: 12, marginBottom: 10 }}>
                   {car.year} · {car.mileage?.toLocaleString() ?? 0} mi · {car.color ?? "—"}
                 </div>
@@ -210,10 +225,26 @@ function ListingModal({ item, onClose, onSave, loading }: {
   return (
     <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: 640 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: item?.stockNumber || item?.inventoryId ? 8 : 20 }}>
           <h2 style={{ fontFamily: "Rajdhani", fontSize: 20, fontWeight: 700 }}>{item ? "Edit Listing" : "Add Vehicle"}</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "#555" }}><X size={18} /></button>
         </div>
+        {(item?.stockNumber || item?.inventoryId) && (
+          <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+            {item.stockNumber && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em" }}>Stock #</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#e02020", fontFamily: "Rajdhani", background: "rgba(224,32,32,0.08)", border: "1px solid rgba(224,32,32,0.2)", borderRadius: 6, padding: "4px 12px" }}>{item.stockNumber}</span>
+              </div>
+            )}
+            {item.inventoryId && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em" }}>Inventory ID</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "#aaa", fontFamily: "Rajdhani", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: "4px 12px" }}>{item.inventoryId}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           {[

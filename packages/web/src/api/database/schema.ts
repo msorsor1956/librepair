@@ -158,6 +158,8 @@ export const notifications = sqliteTable("notifications", {
 // Car Inventory (Vehicles for Sale)
 export const carInventory = sqliteTable("car_inventory", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  stockNumber: text("stock_number").unique(),   // 6-digit e.g. "LR8472"
+  inventoryId: text("inventory_id").unique(),   // 9-digit e.g. "LR-482930-1"
   title: text("title").notNull(),
   make: text("make").notNull(),
   model: text("model").notNull(),

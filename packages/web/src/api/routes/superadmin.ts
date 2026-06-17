@@ -452,7 +452,13 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     if (!body.title || !body.make || !body.model || !body.year || !body.price) {
       return c.json({ message: "title, make, model, year, price required" }, 400);
     }
+    // Auto-generate 6-digit stock number: "LR" + 4 random digits  e.g. LR8472
+    const stockNumber = "LR" + Math.floor(1000 + Math.random() * 9000).toString();
+    // Auto-generate 9-char inventory ID: "LR-" + 6 random digits  e.g. LR-482930
+    const inventoryId = "LR-" + Math.floor(100000 + Math.random() * 900000).toString();
     const [created] = await db.insert(schema.carInventory).values({
+      stockNumber,
+      inventoryId,
       title: body.title,
       make: body.make,
       model: body.model,
