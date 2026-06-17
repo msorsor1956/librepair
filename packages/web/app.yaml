@@ -16,7 +16,7 @@ spec:
         - name: WASMER_APP_ID
           value: da_Ra7IetdUVkpy
         - name: WASMER_APP_URL
-          value: https://librepair-sonnietechnologyllc.wasmer.app
+          value: https://librepair.wasmer.app
       web_gateway:
         force_https: true
-    source: sonnietechnologyllc/librepair@=0.1.10
+    source: sonnietechnologyllc/librepair@=0.1.11

@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
@@ -34,7 +35,7 @@ export default function PaymentsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["my-payments"],
     queryFn: async () => {
-      const r = await fetch("/api/payments/mine");
+      const r = await apiFetch("/api/payments/mine");
       return r.json() as Promise<{ payments: any[] }>;
     },
   });

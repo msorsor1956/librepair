@@ -38,6 +38,8 @@ services:
         value: librepair-77afa.firebaseapp.com
       - key: FIREBASE_APP_ID
         value: 1:86955698956:web:2211ccf5087b05810c3729
+      - key: VITE_API_URL
+        value: https://librepair-backend.onrender.com
       - key: VITE_FIREBASE_API_KEY
         value: AIzaSyCNMz4Gh65dgyoQOFIFz_u0r-b59Hifq_I
       - key: VITE_FIREBASE_AUTH_DOMAIN

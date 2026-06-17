@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
@@ -33,7 +34,7 @@ export default function ForgotPasswordPage() {
   const sendPhoneOTP = async () => {
     setLoading(true); setError("");
     try {
-      const res = await fetch("/api/phone-auth/send-otp", {
+      const res = await apiFetch("/api/phone-auth/send-otp", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, mode: "signin" }),
       });

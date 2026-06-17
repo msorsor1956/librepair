@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
@@ -58,7 +59,7 @@ export default function SignInPhonePage() {
       await signOut(firebaseAuth);
 
       // Exchange Firebase token for our session
-      const res = await fetch("/api/phone-auth/firebase-verify", {
+      const res = await apiFetch("/api/phone-auth/firebase-verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, phone }),

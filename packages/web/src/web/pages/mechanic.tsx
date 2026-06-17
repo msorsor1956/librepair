@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -361,7 +362,7 @@ export default function MechanicPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["mechanic-jobs"],
     queryFn: async () => {
-      const r = await fetch("/api/mechanics/my-jobs");
+      const r = await apiFetch("/api/mechanics/my-jobs");
       return r.json() as Promise<{ appointments: any[] }>;
     },
     enabled: !!user,

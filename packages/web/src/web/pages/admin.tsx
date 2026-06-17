@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -474,7 +475,7 @@ function CreateAdminModal({ onClose }: { onClose: () => void }) {
 
   async function save() {
     setSaving(true); setError(""); setSuccess("");
-    const r = await fetch("/api/admin/create-admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const r = await apiFetch("/api/admin/create-admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
     const data = await r.json();
     if (!r.ok) { setError(data.message ?? "Error"); setSaving(false); return; }
     setSuccess(data.message ?? "Admin created!");
@@ -744,7 +745,7 @@ function CustomerRow({ customer, isSuperAdmin }: { customer: any; isSuperAdmin: 
 
   async function deactivateCustomer() {
     if (!confirm(`Deactivate ${customer.name}?`)) return;
-    await fetch("/api/admin/deactivate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: customer.id }) });
+    await apiFetch("/api/admin/deactivate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: customer.id }) });
     qc.invalidateQueries({ queryKey: ["admin-customers"] });
   }
 
@@ -882,7 +883,7 @@ export default function AdminPage() {
   const { data: customersData } = useQuery({
     queryKey: ["admin-customers"],
     queryFn: async () => {
-      const r = await fetch("/api/admin/users");
+      const r = await apiFetch("/api/admin/users");
       return r.json() as Promise<{ users: any[] }>;
     },
   });
@@ -890,7 +891,7 @@ export default function AdminPage() {
   const { data: appointmentsData } = useQuery({
     queryKey: ["admin-appointments"],
     queryFn: async () => {
-      const r = await fetch("/api/appointments/all");
+      const r = await apiFetch("/api/appointments/all");
       return r.json() as Promise<{ appointments: any[] }>;
     },
   });
@@ -898,7 +899,7 @@ export default function AdminPage() {
   const { data: paymentsData } = useQuery({
     queryKey: ["admin-payments"],
     queryFn: async () => {
-      const r = await fetch("/api/payments/all");
+      const r = await apiFetch("/api/payments/all");
       return r.json() as Promise<{ payments: any[] }>;
     },
   });
@@ -906,7 +907,7 @@ export default function AdminPage() {
   const { data: servicesData } = useQuery({
     queryKey: ["admin-services"],
     queryFn: async () => {
-      const r = await fetch("/api/services?all=true");
+      const r = await apiFetch("/api/services?all=true");
       return r.json() as Promise<any[]>;
     },
   });
@@ -1003,7 +1004,7 @@ export default function AdminPage() {
                     { label: "Manage Services",     action: () => setTab("Services"),     icon: <Wrench size={16} /> },
                     { label: "Manage Appointments", action: () => setTab("Appointments"), icon: <Calendar size={16} /> },
                     { label: "Manage Payments",     action: () => setTab("Payments"),     icon: <CreditCard size={16} /> },
-                    { label: "Seed Services",       action: () => fetch("/api/services/seed", { method: "POST" }).then(() => alert("Services seeded!")), icon: <TrendingUp size={16} /> },
+                    { label: "Seed Services",       action: () => apiFetch("/api/services/seed", { method: "POST" }).then(() => alert("Services seeded!")), icon: <TrendingUp size={16} /> },
                   ].map((item) => (
                     <motion.button key={item.label} whileHover={{ x: 4 }} onClick={item.action}
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-left"
@@ -1096,7 +1097,7 @@ export default function AdminPage() {
             {services.length === 0 ? (
               <div className="p-12 text-center space-y-3" style={{ color: "var(--color-muted)" }}>
                 <p>No services yet.</p>
-                <button onClick={() => fetch("/api/services/seed", { method: "POST" }).then(() => window.location.reload())}
+                <button onClick={() => apiFetch("/api/services/seed", { method: "POST" }).then(() => window.location.reload())}
                   className="text-sm px-4 py-2 rounded-lg font-medium" style={{ backgroundColor: "rgba(224,32,32,0.12)", color: "var(--color-red)" }}>
                   Seed Default Services
                 </button>

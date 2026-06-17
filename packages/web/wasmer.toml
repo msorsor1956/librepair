@@ -5,7 +5,7 @@ entrypoint = "server"
 "wasmer/static-web-server" = "=1"
 
 [fs]
-"/public" = "./public"
+"/public" = "./dist"
 
 [[command]]
 name = "server"
@@ -14,4 +14,4 @@ runner = "https://webc.org/runner/wasi"
 
 [command.annotations.wasi]
 atom = "wasmer/static-web-server:webserver"
-main-args = ["-a", "0.0.0.0", "-p", "3000", "-d", "/public", "--page404", "/public/index.html"]
+main-args = ["-a", "0.0.0.0", "-p", "3000", "-d", "/public", "--page404", "/public/index.html", "--page-fallback", "/public/index.html"]

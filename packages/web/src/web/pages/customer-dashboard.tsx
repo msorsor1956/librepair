@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
@@ -36,11 +37,11 @@ export default function CustomerDashboardPage() {
     setLoading(true);
     try {
       const [notifRes, apptRes, vehRes, invRes, payRes] = await Promise.allSettled([
-        fetch("/api/customer/notifications", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
-        fetch("/api/customer/appointments", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
-        fetch("/api/customer/vehicles", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
-        fetch("/api/customer/invoices", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
-        fetch("/api/customer/payments", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
+        apiFetch("/api/customer/notifications", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
+        apiFetch("/api/customer/appointments", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
+        apiFetch("/api/customer/vehicles", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
+        apiFetch("/api/customer/invoices", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
+        apiFetch("/api/customer/payments", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
       ]);
       if (notifRes.status === "fulfilled" && notifRes.value.ok) setNotifications((await notifRes.value.json()).notifications ?? []);
       if (apptRes.status === "fulfilled" && apptRes.value.ok) setAppointments((await apptRes.value.json()).appointments ?? []);
@@ -277,7 +278,7 @@ function VehiclesTab({ vehicles, onRefresh }: { vehicles: any[]; onRefresh: () =
 
   const submit = async () => {
     setLoading(true);
-    await fetch("/api/customer/vehicles", {
+    await apiFetch("/api/customer/vehicles", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("bearer_token")}` },
       body: JSON.stringify({ ...form, year: parseInt(form.year), mileage: parseInt(form.mileage) || 0 }),
@@ -521,7 +522,7 @@ function ProfileTab({ session, onRefresh }: { session: any; onRefresh: () => voi
 
   const save = async () => {
     setLoading(true);
-    await fetch("/api/customer/profile", {
+    await apiFetch("/api/customer/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("bearer_token")}` },
       body: JSON.stringify({ name, phone, address }),

@@ -15,7 +15,7 @@ import { phoneAuthRouter } from "./routes/phone-auth";
 import { customerRouter } from "./routes/customer";
 
 const app = new Hono()
-  .use(cors({ origin: (origin) => origin ?? "*", credentials: true, exposeHeaders: ["set-auth-token"] }))
+  .use(cors({ origin: (origin) => { const allowed = ["https://librepair.wasmer.app", "https://librepair-sonnietechnologyllc.wasmer.app"]; return (origin && allowed.some(a => origin.startsWith(a))) ? origin : (origin ?? "*"); }, credentials: true, exposeHeaders: ["set-auth-token"] }))
   .on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw))
   .basePath("api")
   .get("/health", (c) => c.json({ status: "ok" }, 200))
