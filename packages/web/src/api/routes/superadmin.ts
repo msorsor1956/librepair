@@ -8,7 +8,7 @@ import { auth } from "../auth";
 import Stripe from "stripe";
 import { execSync } from "child_process";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", { apiVersion: "2025-05-28.basil" });
+const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY ?? "sk_test_placeholder", { apiVersion: "2025-05-28.basil" });
 
 const SUPER_ADMIN_EMAILS = ["m.sorsor@sonnietech.com", "sonnietechnologyllc@gmail.com"];
 
@@ -954,7 +954,7 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     const amount = appointment.totalCost ?? appointment.bookingFee ?? 25;
 
     // Create a Stripe Price on-the-fly
-    const price = await stripe.prices.create({
+    const price = await getStripe().prices.create({
       currency: "usd",
       unit_amount: Math.round(amount * 100),
       product_data: {
@@ -963,7 +963,7 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     });
 
     // Create Stripe Payment Link
-    const paymentLink = await stripe.paymentLinks.create({
+    const paymentLink = await getStripe().paymentLinks.create({
       line_items: [{ price: price.id, quantity: 1 }],
       metadata: { appointmentId: String(id) },
       after_completion: { type: "hosted_confirmation", hosted_confirmation: { custom_message: "Thank you! Your appointment is confirmed." } },
@@ -1000,7 +1000,7 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     let event: Stripe.Event;
     try {
       if (webhookSecret) {
-        event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+        event = getStripe().webhooks.constructEvent(rawBody, sig, webhookSecret);
       } else {
         event = JSON.parse(rawBody) as Stripe.Event;
       }
