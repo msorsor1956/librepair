@@ -169,6 +169,7 @@ export const carInventory = sqliteTable("car_inventory", {
   contactEmail: text("contact_email"),
   status: text("status", { enum: ["available", "sold", "reserved"] }).notNull().default("available"),
   featured: integer("featured", { mode: "boolean" }).notNull().default(false),
+  published: integer("published", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });

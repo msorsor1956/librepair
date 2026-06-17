@@ -358,6 +358,7 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     if (body.price !== undefined) updates.price = Number(body.price);
     if (body.mileage !== undefined) updates.mileage = Number(body.mileage);
     if (body.featured !== undefined) updates.featured = body.featured;
+    if (body.published !== undefined) updates.published = body.published;
     if (body.photos !== undefined) updates.photos = Array.isArray(body.photos) ? JSON.stringify(body.photos) : body.photos;
     const [updated] = await db.update(schema.carInventory).set(updates).where(eq(schema.carInventory.id, id)).returning();
     if (!updated) return c.json({ message: "Not found" }, 404);

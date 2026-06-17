@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { signIn } from "../lib/auth";
 import type { AdminUser } from "../App";
-import { Lock, Mail, AlertCircle } from "lucide-react";
+import { Mail, Lock, AlertCircle } from "lucide-react";
 
 export default function LoginPage({ onLogin }: { onLogin: (u: AdminUser) => void }) {
   const [email, setEmail] = useState("");
@@ -26,36 +26,57 @@ export default function LoginPage({ onLogin }: { onLogin: (u: AdminUser) => void
 
   return (
     <div style={{
-      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-      background: "#0a0a0a", padding: 20,
+      minHeight: "100vh",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundImage: "url('/bg.png')",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+      padding: 20,
+      position: "relative",
     }}>
-      <div style={{ width: "100%", maxWidth: 400 }}>
+      {/* dark overlay */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "rgba(0,0,0,0.65)",
+        backdropFilter: "blur(1px)",
+      }} />
+
+      <div style={{ width: "100%", maxWidth: 420, position: "relative", zIndex: 1 }}>
         {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <div style={{
-            width: 56, height: 56, background: "rgba(224,32,32,0.1)", border: "1px solid rgba(224,32,32,0.25)",
-            borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px",
-          }}>
-            <Lock size={22} color="#e02020" />
-          </div>
-          <h1 style={{ fontFamily: "Rajdhani, sans-serif", fontSize: 28, fontWeight: 700, letterSpacing: 1 }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <h1 style={{ fontFamily: "Rajdhani, sans-serif", fontSize: 32, fontWeight: 700, letterSpacing: 2, margin: 0, color: "#fff", textShadow: "0 0 20px rgba(224,32,32,0.6)" }}>
             LIBrepair
           </h1>
-          <p style={{ color: "#555", fontSize: 13, marginTop: 4 }}>Super Admin Panel</p>
+          <p style={{ color: "#aaa", fontSize: 13, marginTop: 8, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            Super Admin Panel
+          </p>
         </div>
 
+        {/* Card */}
         <form onSubmit={handleSubmit} style={{
-          background: "#111", border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: 16, padding: 28, display: "flex", flexDirection: "column", gap: 16,
+          background: "rgba(10,10,10,0.85)",
+          border: "1px solid rgba(224,32,32,0.2)",
+          borderRadius: 18,
+          padding: "32px 28px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+          boxShadow: "0 8px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(224,32,32,0.08)",
+          backdropFilter: "blur(12px)",
         }}>
-          <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "#555" }}>
-            Admin Sign In
+          <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "#555", margin: 0 }}>
+            Restricted Access · Admin Sign In
           </p>
 
           {error && (
             <div style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "10px 14px",
-              background: "rgba(224,32,32,0.08)", border: "1px solid rgba(224,32,32,0.2)",
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "10px 14px",
+              background: "rgba(224,32,32,0.08)",
+              border: "1px solid rgba(224,32,32,0.2)",
               borderRadius: 8, color: "#f87171", fontSize: 13,
             }}>
               <AlertCircle size={14} />
@@ -87,13 +108,18 @@ export default function LoginPage({ onLogin }: { onLogin: (u: AdminUser) => void
             </div>
           </div>
 
-          <button type="submit" className="btn btn-red" disabled={loading} style={{ width: "100%", justifyContent: "center", padding: "12px 16px", marginTop: 4 }}>
+          <button
+            type="submit"
+            className="btn btn-red"
+            disabled={loading}
+            style={{ width: "100%", justifyContent: "center", padding: "13px 16px", marginTop: 4, fontSize: 14, fontWeight: 700, letterSpacing: "0.04em" }}
+          >
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
-        <p style={{ textAlign: "center", marginTop: 20, color: "#333", fontSize: 12 }}>
-          LIBrepair Super Admin · Restricted Access
+        <p style={{ textAlign: "center", marginTop: 20, color: "#333", fontSize: 11, letterSpacing: "0.05em" }}>
+          LIBrepair · We Keep You Moving
         </p>
       </div>
     </div>

@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { Plus, X, Pencil, Trash2, Star } from "lucide-react";
+import { Plus, X, Pencil, Trash2, Star, Eye, EyeOff } from "lucide-react";
 
 type Listing = {
   id: number; title: string; make: string; model: string; year: number;
   price: number; mileage: number; color?: string; condition: string;
   description?: string; videoUrl?: string; photos: string[];
-  contactPhone?: string; contactEmail?: string; status: string; featured: boolean;
+  contactPhone?: string; contactEmail?: string; status: string;
+  featured: boolean; published: boolean;
 };
 
 const statusBadge: Record<string, string> = { available: "badge-green", sold: "badge-red", reserved: "badge-yellow" };
@@ -17,6 +18,7 @@ export default function InventoryPage() {
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
   const [editItem, setEditItem] = useState<Listing | null>(null);
+  const [filterPublished, setFilterPublished] = useState<"all" | "published" | "hidden">("all");
 
   const { data, isLoading } = useQuery({ queryKey: ["inventory"], queryFn: () => api.get("/superadmin/inventory") });
 
@@ -32,25 +34,63 @@ export default function InventoryPage() {
     mutationFn: (id: number) => api.delete(`/superadmin/inventory/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["inventory"] }),
   });
+  const publishMutation = useMutation({
+    mutationFn: ({ id, published }: { id: number; published: boolean }) =>
+      api.patch(`/superadmin/inventory/${id}`, { published }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["inventory"] }),
+  });
 
-  const listings: Listing[] = data?.listings ?? [];
+  const all: Listing[] = data?.listings ?? [];
+  const listings = all.filter(l => {
+    if (filterPublished === "published") return l.published;
+    if (filterPublished === "hidden") return !l.published;
+    return true;
+  });
+
+  const publishedCount = all.filter(l => l.published).length;
+  const hiddenCount = all.filter(l => !l.published).length;
 
   return (
     <div style={{ padding: 32 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontFamily: "Rajdhani, sans-serif", fontSize: 24, fontWeight: 700 }}>Inventory</h1>
-          <p style={{ color: "#555", fontSize: 13 }}>{listings.length} vehicles · {listings.filter(l => l.status === "available").length} available</p>
+          <p style={{ color: "#555", fontSize: 13 }}>
+            {all.length} total · <span style={{ color: "#22c55e" }}>{publishedCount} published</span> · <span style={{ color: "#555" }}>{hiddenCount} hidden</span>
+          </p>
         </div>
         <button className="btn btn-red" onClick={() => setShowAdd(true)}>
-          <Plus size={14} /> Add Listing
+          <Plus size={14} /> Add Vehicle
         </button>
+      </div>
+
+      {/* Filter tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        {(["all", "published", "hidden"] as const).map(f => (
+          <button
+            key={f}
+            onClick={() => setFilterPublished(f)}
+            style={{
+              padding: "6px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer",
+              background: filterPublished === f ? "#e02020" : "rgba(255,255,255,0.04)",
+              border: filterPublished === f ? "1px solid #e02020" : "1px solid rgba(255,255,255,0.07)",
+              color: filterPublished === f ? "#fff" : "#888",
+            }}
+          >
+            {f.charAt(0).toUpperCase() + f.slice(1)} {f === "all" ? `(${all.length})` : f === "published" ? `(${publishedCount})` : `(${hiddenCount})`}
+          </button>
+        ))}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
         {isLoading ? <div style={{ color: "#555", gridColumn: "1/-1", textAlign: "center", padding: 40 }}>Loading...</div> : (
           listings.map(car => (
-            <div key={car.id} style={{ background: "#111", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, overflow: "hidden" }}>
+            <div key={car.id} style={{
+              background: "#111",
+              border: car.published ? "1px solid rgba(34,197,94,0.2)" : "1px solid rgba(255,255,255,0.06)",
+              borderRadius: 12, overflow: "hidden",
+              opacity: car.published ? 1 : 0.75,
+            }}>
               {/* Photo */}
               <div style={{ height: 160, background: "#1a1a1a", position: "relative", overflow: "hidden" }}>
                 {car.photos?.[0] ? (
@@ -63,6 +103,17 @@ export default function InventoryPage() {
                     <Star size={10} fill="currentColor" /> Featured
                   </div>
                 )}
+                {/* Published badge */}
+                <div style={{ position: "absolute", bottom: 8, left: 8 }}>
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                    padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                    background: car.published ? "rgba(34,197,94,0.9)" : "rgba(80,80,80,0.9)",
+                    color: car.published ? "#000" : "#ccc",
+                  }}>
+                    {car.published ? <><Eye size={10} /> Live</> : <><EyeOff size={10} /> Hidden</>}
+                  </span>
+                </div>
                 <div style={{ position: "absolute", top: 8, right: 8 }}>
                   <span className={`badge ${statusBadge[car.status] ?? "badge-gray"}`}>{car.status}</span>
                 </div>
@@ -79,9 +130,25 @@ export default function InventoryPage() {
                   </div>
                   <span className={`badge ${conditionBadge[car.condition] ?? "badge-gray"}`}>{car.condition}</span>
                 </div>
+
+                {/* Action buttons */}
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn btn-ghost" style={{ flex: 1, justifyContent: "center", fontSize: 12 }} onClick={() => setEditItem(car)}>
-                    <Pencil size={12} /> Edit
+                  {/* Publish / Hide toggle */}
+                  <button
+                    onClick={() => publishMutation.mutate({ id: car.id, published: !car.published })}
+                    disabled={publishMutation.isPending}
+                    style={{
+                      flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      padding: "7px 10px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                      background: car.published ? "rgba(34,197,94,0.1)" : "rgba(224,32,32,0.1)",
+                      border: car.published ? "1px solid rgba(34,197,94,0.3)" : "1px solid rgba(224,32,32,0.3)",
+                      color: car.published ? "#22c55e" : "#e02020",
+                    }}
+                  >
+                    {car.published ? <><EyeOff size={12} /> Hide</> : <><Eye size={12} /> Publish</>}
+                  </button>
+                  <button className="btn btn-ghost" style={{ padding: "6px 12px" }} onClick={() => setEditItem(car)}>
+                    <Pencil size={12} />
                   </button>
                   <button
                     className="btn btn-danger" style={{ padding: "6px 12px" }}
@@ -95,7 +162,9 @@ export default function InventoryPage() {
           ))
         )}
         {!isLoading && listings.length === 0 && (
-          <div style={{ gridColumn: "1/-1", textAlign: "center", color: "#444", padding: 40 }}>No listings yet. Add your first vehicle.</div>
+          <div style={{ gridColumn: "1/-1", textAlign: "center", color: "#444", padding: 40 }}>
+            {filterPublished === "hidden" ? "No hidden vehicles." : filterPublished === "published" ? "No published vehicles yet." : "No listings yet."}
+          </div>
         )}
       </div>
 
@@ -123,6 +192,7 @@ function ListingModal({ item, onClose, onSave, loading }: {
     contactEmail: item?.contactEmail ?? "",
     status: item?.status ?? "available",
     featured: item?.featured ?? false,
+    published: item?.published ?? false,
     photos: (item?.photos ?? []).join("\n"),
   });
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
@@ -133,7 +203,7 @@ function ListingModal({ item, onClose, onSave, loading }: {
       year: Number(form.year),
       price: Number(form.price),
       mileage: Number(form.mileage),
-      photos: form.photos.split("\n").map(s => s.trim()).filter(Boolean),
+      photos: form.photos.split("\n").map((s: string) => s.trim()).filter(Boolean),
     });
   }
 
@@ -201,10 +271,14 @@ function ListingModal({ item, onClose, onSave, loading }: {
             <label className="form-label">Description</label>
             <textarea value={form.description} onChange={e => set("description", e.target.value)} rows={3} placeholder="Vehicle description..." />
           </div>
-          <div className="form-group" style={{ gridColumn: "1/-1" }}>
+          <div className="form-group" style={{ gridColumn: "1/-1", display: "flex", gap: 24 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
               <input type="checkbox" checked={form.featured} onChange={e => set("featured", e.target.checked)} style={{ width: "auto" }} />
               <span style={{ fontSize: 13, color: "#aaa" }}>Mark as Featured</span>
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input type="checkbox" checked={form.published} onChange={e => set("published", e.target.checked)} style={{ width: "auto" }} />
+              <span style={{ fontSize: 13, color: "#22c55e" }}>Publish to website</span>
             </label>
           </div>
         </div>
@@ -212,7 +286,7 @@ function ListingModal({ item, onClose, onSave, loading }: {
         <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "flex-end" }}>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-red" disabled={loading} onClick={handleSave}>
-            {loading ? "Saving..." : (item ? "Save Changes" : "Add Listing")}
+            {loading ? "Saving..." : (item ? "Save Changes" : "Add Vehicle")}
           </button>
         </div>
       </div>

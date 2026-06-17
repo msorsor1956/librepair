@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../database";
 import * as schema from "../database/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { authMiddleware, requireAuth } from "../middleware/auth";
 import type { HonoVariables } from "../types";
 
@@ -20,11 +20,12 @@ async function requireAdmin(c: any, next: any) {
 
 export const inventoryRouter = new Hono<{ Variables: HonoVariables }>()
 
-  // ── PUBLIC: get all available listings ──
+  // ── PUBLIC: get all published listings only ──
   .get("/", async (c) => {
     const listings = await db
       .select()
       .from(schema.carInventory)
+      .where(eq(schema.carInventory.published, true))
       .orderBy(desc(schema.carInventory.createdAt));
     return c.json({ listings: listings.map(parsePhotos) }, 200);
   })
