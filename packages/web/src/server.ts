@@ -43,3 +43,4 @@ function getStaticFilePath(pathname: string) {
 
   return cleanPath ? `${distDir}/${cleanPath}` : indexPath;
 }
+// render redeploy trigger Wed Jun 17 08:59:05 UTC 2026
