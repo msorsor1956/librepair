@@ -453,23 +453,36 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
   ══════════════════════════════════════════════════ */
 
   /* ══════════════════════════════════════════════════
-     INVENTORY IMAGE UPLOAD → Cloudflare R2
+     INVENTORY MEDIA UPLOAD → Cloudflare R2 (images + videos)
   ══════════════════════════════════════════════════ */
   .post("/inventory/upload-image", requireAuth, requireSuperAdmin, async (c) => {
     const formData = await c.req.formData();
     const file = formData.get("file") as File | null;
     if (!file) return c.json({ message: "No file provided" }, 400);
 
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      return c.json({ message: "Only JPG, PNG, and WebP images are allowed" }, 400);
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      return c.json({ message: "File too large. Max 10MB." }, 400);
+    const imageTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"];
+    const videoTypes = ["video/mp4", "video/quicktime", "video/webm", "video/x-msvideo", "video/mpeg"];
+    const isVideo = videoTypes.includes(file.type);
+    const isImage = imageTypes.includes(file.type);
+
+    if (!isImage && !isVideo) {
+      return c.json({ message: "Unsupported file type. Images: JPG, PNG, WebP. Videos: MP4, MOV, WebM." }, 400);
     }
 
-    const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-    const key = `inventory/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const maxSize = isVideo ? 200 * 1024 * 1024 : 25 * 1024 * 1024; // 200MB video, 25MB image
+    if (file.size > maxSize) {
+      return c.json({ message: `File too large. Max ${isVideo ? "200MB for videos" : "25MB for images"}.` }, 400);
+    }
+
+    const extMap: Record<string, string> = {
+      "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png",
+      "image/webp": "webp", "image/heic": "jpg", "image/heif": "jpg",
+      "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm",
+      "video/x-msvideo": "avi", "video/mpeg": "mp4",
+    };
+    const ext = extMap[file.type] ?? (isVideo ? "mp4" : "jpg");
+    const folder = isVideo ? "inventory/videos" : "inventory/photos";
+    const key = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const arrayBuffer = await file.arrayBuffer();
 
     await s3.send(new PutObjectCommand({
@@ -477,15 +490,12 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
       Key: key,
       Body: Buffer.from(arrayBuffer),
       ContentType: file.type,
-      // ACL not supported on R2
     }));
 
-    // Build public URL
-    // S3_PUBLIC_URL can be a custom domain or the R2 public bucket URL
     const base = (process.env.S3_PUBLIC_URL ?? `${process.env.S3_ENDPOINT}/${process.env.S3_BUCKET}`).replace(/\/$/, "");
     const publicUrl = `${base}/${key}`;
 
-    return c.json({ url: publicUrl, key }, 200);
+    return c.json({ url: publicUrl, key, mediaType: isVideo ? "video" : "image" }, 200);
   })
 
   .get("/inventory", requireAuth, requireSuperAdmin, async (c) => {
@@ -516,6 +526,7 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
       description: body.description ?? null,
       videoUrl: body.videoUrl ?? null,
       photos: Array.isArray(body.photos) ? JSON.stringify(body.photos) : "[]",
+      videos: Array.isArray(body.videos) ? JSON.stringify(body.videos) : "[]",
       contactPhone: body.contactPhone ?? null,
       contactEmail: body.contactEmail ?? null,
       status: body.status ?? "available",
@@ -536,6 +547,7 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     if (body.featured !== undefined) updates.featured = body.featured;
     if (body.published !== undefined) updates.published = body.published;
     if (body.photos !== undefined) updates.photos = Array.isArray(body.photos) ? JSON.stringify(body.photos) : body.photos;
+    if (body.videos !== undefined) updates.videos = Array.isArray(body.videos) ? JSON.stringify(body.videos) : body.videos;
     const [updated] = await db.update(schema.carInventory).set(updates).where(eq(schema.carInventory.id, id)).returning();
     if (!updated) return c.json({ message: "Not found" }, 404);
     return c.json(parsePhotos(updated), 200);
@@ -1147,5 +1159,8 @@ function parsePhotos(listing: any) {
   try {
     listing.photos = typeof listing.photos === "string" ? JSON.parse(listing.photos) : listing.photos ?? [];
   } catch { listing.photos = []; }
+  try {
+    listing.videos = typeof listing.videos === "string" ? JSON.parse(listing.videos) : listing.videos ?? [];
+  } catch { listing.videos = []; }
   return listing;
 }

@@ -171,6 +171,7 @@ export const carInventory = sqliteTable("car_inventory", {
   description: text("description"),
   videoUrl: text("video_url"),
   photos: text("photos").default("[]"), // JSON array of up to 9 photo URLs
+  videos: text("videos").default("[]"), // JSON array of video URLs (mp4, mov, webm)
   contactPhone: text("contact_phone"),
   contactEmail: text("contact_email"),
   status: text("status", { enum: ["available", "sold", "reserved"] }).notNull().default("available"),
