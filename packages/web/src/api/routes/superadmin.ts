@@ -24,14 +24,24 @@ const R2_ENDPOINT = process.env.S3_ENDPOINT ?? "";
 const R2_BUCKET = process.env.S3_BUCKET ?? "";
 
 async function toPresignedUrl(url: string): Promise<string> {
-  // Only presign private R2 URLs (not Firebase or other public URLs)
-  if (!url || !R2_ENDPOINT || !url.startsWith(R2_ENDPOINT)) return url;
+  if (!url || !R2_BUCKET) return url;
+  // Skip Firebase / non-R2 public URLs
+  if (url.includes("firebasestorage.googleapis.com") || url.includes("storage.googleapis.com")) return url;
+  // Only handle R2 paths: either a clean relative key or an old R2 full URL
+  const isR2Host = R2_ENDPOINT && url.startsWith(R2_ENDPOINT);
+  const isCleanKey = !url.startsWith("http") && (url.startsWith("inventory/") || url.startsWith("vehicles/") || url.startsWith("photos/"));
+  if (!isR2Host && !isCleanKey) return url;
   try {
-    // Extract key: everything after the bucket segment
-    const bucketPrefix = `${R2_ENDPOINT}/${R2_BUCKET}/`;
-    const key = url.startsWith(bucketPrefix) ? url.slice(bucketPrefix.length) : url.split("/").slice(-2).join("/");
+    let key: string;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      const u = new URL(url.split("?")[0]);
+      key = u.pathname.replace(/^\//, "");
+      if (key.startsWith(R2_BUCKET + "/")) key = key.slice(R2_BUCKET.length + 1);
+    } else {
+      key = url;
+    }
     const cmd = new GetObjectCommand({ Bucket: R2_BUCKET, Key: key });
-    return await getSignedUrl(r2Client, cmd, { expiresIn: 3600 });
+    return await getSignedUrl(r2Client, cmd, { expiresIn: 7200 });
   } catch {
     return url;
   }

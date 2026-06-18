@@ -19,12 +19,21 @@ const R2_ENDPOINT = process.env.S3_ENDPOINT ?? "";
 const R2_BUCKET = process.env.S3_BUCKET ?? "";
 
 async function toPresignedUrl(url: string): Promise<string> {
-  if (!url || !R2_ENDPOINT || !url.startsWith(R2_ENDPOINT)) return url;
+  if (!url || !R2_BUCKET) return url;
   try {
-    const bucketPrefix = `${R2_ENDPOINT}/${R2_BUCKET}/`;
-    const key = url.startsWith(bucketPrefix) ? url.slice(bucketPrefix.length) : url.split("/").slice(-2).join("/");
+    let key: string;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      // Strip any expired presigned params and extract the key from the path
+      const u = new URL(url.split("?")[0]);
+      key = u.pathname.replace(/^\//, ""); // remove leading slash
+      // If path starts with bucket name, strip it
+      if (key.startsWith(R2_BUCKET + "/")) key = key.slice(R2_BUCKET.length + 1);
+    } else {
+      // Already a clean relative key like "inventory/photos/xxx.jpg"
+      key = url;
+    }
     const cmd = new GetObjectCommand({ Bucket: R2_BUCKET, Key: key });
-    return await getSignedUrl(r2Client, cmd, { expiresIn: 3600 });
+    return await getSignedUrl(r2Client, cmd, { expiresIn: 7200 });
   } catch {
     return url;
   }
