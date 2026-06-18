@@ -7,16 +7,19 @@ import type { HonoVariables } from "../types";
 import { auth } from "../auth";
 import Stripe from "stripe";
 import { execSync } from "child_process";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import * as firebaseAdmin from "firebase-admin";
 
-const s3 = new S3Client({
-  region: "auto",
-  endpoint: process.env.S3_ENDPOINT!,
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
-  },
-});
+function getAdminApp(): firebaseAdmin.app.App {
+  if (firebaseAdmin.apps.length > 0) return firebaseAdmin.apps[0]!;
+  return firebaseAdmin.initializeApp({
+    credential: firebaseAdmin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID ?? "librepair-77afa",
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    } as firebaseAdmin.ServiceAccount),
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET ?? "librepair-77afa.firebasestorage.app",
+  });
+}
 
 const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY ?? "sk_test_placeholder", { apiVersion: "2025-05-28.basil" });
 
@@ -453,7 +456,7 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
   ══════════════════════════════════════════════════ */
 
   /* ══════════════════════════════════════════════════
-     INVENTORY MEDIA UPLOAD → Cloudflare R2 (images + videos)
+     INVENTORY MEDIA UPLOAD → Firebase Storage (images + videos)
   ══════════════════════════════════════════════════ */
   .post("/inventory/upload-image", requireAuth, requireSuperAdmin, async (c) => {
     const formData = await c.req.formData();
@@ -484,16 +487,15 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     const folder = isVideo ? "inventory/videos" : "inventory/photos";
     const key = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    await s3.send(new PutObjectCommand({
-      Bucket: process.env.S3_BUCKET!,
-      Key: key,
-      Body: Buffer.from(arrayBuffer),
-      ContentType: file.type,
-    }));
-
-    const base = (process.env.S3_PUBLIC_URL ?? `${process.env.S3_ENDPOINT}/${process.env.S3_BUCKET}`).replace(/\/$/, "");
-    const publicUrl = `${base}/${key}`;
+    // Upload to Firebase Storage
+    const adminApp = getAdminApp();
+    const bucket = firebaseAdmin.storage(adminApp).bucket();
+    const fileRef = bucket.file(key);
+    await fileRef.save(buffer, { contentType: file.type, resumable: false });
+    await fileRef.makePublic();
+    const publicUrl = fileRef.publicUrl();
 
     return c.json({ url: publicUrl, key, mediaType: isVideo ? "video" : "image" }, 200);
   })
