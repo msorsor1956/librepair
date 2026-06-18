@@ -4,7 +4,7 @@ import type { AdminUser } from "../App";
 import {
   LayoutDashboard, Users, CreditCard, Car, Bell, Megaphone,
   CalendarCheck, LogOut, Menu, X, ChevronRight, Shield,
-  Wrench, Star, Clock, FileText, ChevronDown,
+  Wrench, Star, Clock, FileText, ChevronDown, FileBarChart2,
 } from "lucide-react";
 
 type NavItem = { href: string; label: string; icon: any };
@@ -44,6 +44,7 @@ const navGroups: (NavItem | NavGroup)[] = [
     items: [
       { href: "/payments", label: "Payments", icon: CreditCard },
       { href: "/invoices", label: "Invoices", icon: FileText },
+      { href: "/reports",  label: "Reports",  icon: FileBarChart2 },
     ],
   },
   {
