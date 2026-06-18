@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../lib/api";
-import { Plus, X, Pencil, Trash2, Star, Eye, EyeOff } from "lucide-react";
+import { api, getToken } from "../lib/api";
+import {
+  Plus, X, Pencil, Trash2, Star, Eye, EyeOff,
+  Upload, Link, ImagePlus, Loader2, AlertCircle, GripVertical,
+} from "lucide-react";
 
 type Listing = {
   id: number; stockNumber?: string; inventoryId?: string;
@@ -14,6 +17,8 @@ type Listing = {
 
 const statusBadge: Record<string, string> = { available: "badge-green", sold: "badge-red", reserved: "badge-yellow" };
 const conditionBadge: Record<string, string> = { excellent: "badge-green", good: "badge-blue", fair: "badge-yellow" };
+
+const API = import.meta.env.VITE_API_URL ?? "https://librepair-backend.onrender.com";
 
 export default function InventoryPage() {
   const qc = useQueryClient();
@@ -104,7 +109,6 @@ export default function InventoryPage() {
                     <Star size={10} fill="currentColor" /> Featured
                   </div>
                 )}
-                {/* Published badge */}
                 <div style={{ position: "absolute", bottom: 8, left: 8 }}>
                   <span style={{
                     display: "inline-flex", alignItems: "center", gap: 4,
@@ -115,6 +119,11 @@ export default function InventoryPage() {
                     {car.published ? <><Eye size={10} /> Live</> : <><EyeOff size={10} /> Hidden</>}
                   </span>
                 </div>
+                {car.photos?.length > 1 && (
+                  <div style={{ position: "absolute", bottom: 8, right: 8, padding: "3px 8px", background: "rgba(0,0,0,0.7)", borderRadius: 6, fontSize: 11, color: "#aaa" }}>
+                    +{car.photos.length - 1} more
+                  </div>
+                )}
                 <div style={{ position: "absolute", top: 8, right: 8 }}>
                   <span className={`badge ${statusBadge[car.status] ?? "badge-gray"}`}>{car.status}</span>
                 </div>
@@ -123,7 +132,7 @@ export default function InventoryPage() {
               <div style={{ padding: 16 }}>
                 <div style={{ fontFamily: "Rajdhani", fontSize: 16, fontWeight: 700, marginBottom: 2 }}>{car.title}</div>
                 {(car.stockNumber || car.inventoryId) && (
-                  <div style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
                     {car.stockNumber && (
                       <span style={{ fontSize: 10, fontWeight: 700, color: "#e02020", background: "rgba(224,32,32,0.1)", border: "1px solid rgba(224,32,32,0.2)", borderRadius: 4, padding: "2px 6px", letterSpacing: "0.05em" }}>
                         STK# {car.stockNumber}
@@ -146,9 +155,7 @@ export default function InventoryPage() {
                   <span className={`badge ${conditionBadge[car.condition] ?? "badge-gray"}`}>{car.condition}</span>
                 </div>
 
-                {/* Action buttons */}
                 <div style={{ display: "flex", gap: 8 }}>
-                  {/* Publish / Hide toggle */}
                   <button
                     onClick={() => publishMutation.mutate({ id: car.id, published: !car.published })}
                     disabled={publishMutation.isPending}
@@ -189,6 +196,179 @@ export default function InventoryPage() {
   );
 }
 
+// ─── Photo Uploader Component ─────────────────────────────────────────────────
+function PhotoUploader({ photos, onChange }: { photos: string[]; onChange: (urls: string[]) => void }) {
+  const [uploading, setUploading] = useState<number | null>(null);
+  const [urlInput, setUrlInput] = useState("");
+  const [urlError, setUrlError] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function uploadFile(file: File, index?: number) {
+    const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      alert("Only JPG, PNG, and WebP images allowed.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Max file size is 10MB.");
+      return;
+    }
+    const slot = index ?? photos.length;
+    setUploading(slot);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`${API}/api/superadmin/inventory/upload-image`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message ?? "Upload failed");
+      }
+      const { url } = await res.json();
+      const updated = [...photos];
+      if (index !== undefined) {
+        updated[index] = url;
+      } else {
+        updated.push(url);
+      }
+      onChange(updated.slice(0, 9));
+    } catch (e: any) {
+      alert(e.message ?? "Upload failed");
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  function handleFiles(files: FileList | null) {
+    if (!files) return;
+    const remaining = 9 - photos.length;
+    Array.from(files).slice(0, remaining).forEach(f => uploadFile(f));
+  }
+
+  function addWebUrl() {
+    setUrlError("");
+    const url = urlInput.trim();
+    if (!url) return;
+    try { new URL(url); } catch { setUrlError("Invalid URL"); return; }
+    if (photos.length >= 9) { setUrlError("Max 9 photos"); return; }
+    onChange([...photos, url]);
+    setUrlInput("");
+  }
+
+  function removePhoto(i: number) {
+    onChange(photos.filter((_, idx) => idx !== i));
+  }
+
+  function movePhoto(from: number, to: number) {
+    const arr = [...photos];
+    const [item] = arr.splice(from, 1);
+    arr.splice(to, 0, item);
+    onChange(arr);
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 0 }}>
+        <ImagePlus size={12} /> Photos <span style={{ color: "#444", fontWeight: 400 }}>({photos.length}/9) — JPG, PNG, WebP or web link</span>
+      </label>
+
+      {/* Photo grid */}
+      {photos.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          {photos.map((url, i) => (
+            <div key={i} style={{ position: "relative", aspectRatio: "4/3", borderRadius: 8, overflow: "hidden", background: "#1a1a1a", border: i === 0 ? "2px solid #e02020" : "1px solid rgba(255,255,255,0.08)" }}>
+              <img src={url} alt={`Photo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).src = ""; }} />
+              {i === 0 && (
+                <div style={{ position: "absolute", top: 4, left: 4, background: "#e02020", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 4 }}>COVER</div>
+              )}
+              {/* Controls overlay */}
+              <div style={{ position: "absolute", top: 4, right: 4, display: "flex", gap: 3 }}>
+                {i > 0 && (
+                  <button onClick={() => movePhoto(i, i - 1)} title="Move left" style={{ width: 20, height: 20, background: "rgba(0,0,0,0.7)", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>‹</button>
+                )}
+                {i < photos.length - 1 && (
+                  <button onClick={() => movePhoto(i, i + 1)} title="Move right" style={{ width: 20, height: 20, background: "rgba(0,0,0,0.7)", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>›</button>
+                )}
+                <button onClick={() => removePhoto(i)} title="Remove" style={{ width: 20, height: 20, background: "rgba(200,30,30,0.85)", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+              </div>
+              {/* Replace on click */}
+              <label title="Replace photo" style={{ position: "absolute", bottom: 4, right: 4, width: 22, height: 22, background: "rgba(0,0,0,0.7)", border: "none", borderRadius: 4, color: "#aaa", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {uploading === i ? <Loader2 size={11} className="spin" /> : <Upload size={11} />}
+                <input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" hidden onChange={e => e.target.files && uploadFile(e.target.files[0], i)} />
+              </label>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Drop zone */}
+      {photos.length < 9 && (
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
+          onClick={() => fileRef.current?.click()}
+          style={{
+            border: `2px dashed ${dragOver ? "#e02020" : "rgba(255,255,255,0.1)"}`,
+            borderRadius: 10, padding: "20px 16px", textAlign: "center", cursor: "pointer",
+            background: dragOver ? "rgba(224,32,32,0.05)" : "rgba(255,255,255,0.02)",
+            transition: "all 0.15s",
+          }}
+        >
+          {uploading !== null && typeof uploading === "number" && uploading >= photos.length ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: "#888" }}>
+              <Loader2 size={16} className="spin" /> Uploading...
+            </div>
+          ) : (
+            <>
+              <Upload size={20} style={{ color: "#555", marginBottom: 6 }} />
+              <div style={{ fontSize: 13, color: "#888" }}>Drop images here or <span style={{ color: "#e02020" }}>browse</span></div>
+              <div style={{ fontSize: 11, color: "#444", marginTop: 4 }}>JPG, PNG, WebP · Max 10MB · Up to {9 - photos.length} more</div>
+            </>
+          )}
+          <input ref={fileRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple hidden onChange={e => handleFiles(e.target.files)} />
+        </div>
+      )}
+
+      {/* Web URL input */}
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ position: "relative" }}>
+            <Link size={12} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#555" }} />
+            <input
+              value={urlInput}
+              onChange={e => { setUrlInput(e.target.value); setUrlError(""); }}
+              onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addWebUrl())}
+              placeholder="Or paste a web image URL and press Enter"
+              style={{ paddingLeft: 30, fontSize: 12 }}
+              disabled={photos.length >= 9}
+            />
+          </div>
+          {urlError && (
+            <div style={{ display: "flex", alignItems: "center", gap: 5, color: "#f87171", fontSize: 11, marginTop: 4 }}>
+              <AlertCircle size={10} /> {urlError}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={addWebUrl}
+          disabled={!urlInput.trim() || photos.length >= 9}
+          className="btn btn-ghost"
+          style={{ padding: "8px 14px", fontSize: 12, whiteSpace: "nowrap" }}
+        >
+          Add URL
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Listing Modal ────────────────────────────────────────────────────────────
 function ListingModal({ item, onClose, onSave, loading }: {
   item?: Listing; onClose: () => void; onSave: (d: any) => void; loading: boolean;
 }) {
@@ -208,7 +388,7 @@ function ListingModal({ item, onClose, onSave, loading }: {
     status: item?.status ?? "available",
     featured: item?.featured ?? false,
     published: item?.published ?? false,
-    photos: (item?.photos ?? []).join("\n"),
+    photos: item?.photos ?? [],
   });
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
 
@@ -218,17 +398,18 @@ function ListingModal({ item, onClose, onSave, loading }: {
       year: Number(form.year),
       price: Number(form.price),
       mileage: Number(form.mileage),
-      photos: form.photos.split("\n").map((s: string) => s.trim()).filter(Boolean),
     });
   }
 
   return (
     <div className="modal-overlay">
-      <div className="modal" style={{ maxWidth: 640 }}>
+      <div className="modal" style={{ maxWidth: 680, maxHeight: "90vh", overflowY: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: item?.stockNumber || item?.inventoryId ? 8 : 20 }}>
           <h2 style={{ fontFamily: "Rajdhani", fontSize: 20, fontWeight: 700 }}>{item ? "Edit Listing" : "Add Vehicle"}</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "#555" }}><X size={18} /></button>
         </div>
+
+        {/* Stock / Inventory ID badges (edit mode) */}
         {(item?.stockNumber || item?.inventoryId) && (
           <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
             {item.stockNumber && (
@@ -294,10 +475,12 @@ function ListingModal({ item, onClose, onSave, loading }: {
             <label className="form-label">Video URL</label>
             <input value={form.videoUrl} onChange={e => set("videoUrl", e.target.value)} placeholder="https://youtube.com/..." />
           </div>
+
+          {/* Photo uploader — full width */}
           <div className="form-group" style={{ gridColumn: "1/-1" }}>
-            <label className="form-label">Photo URLs (one per line, up to 9)</label>
-            <textarea value={form.photos} onChange={e => set("photos", e.target.value)} rows={4} placeholder={"https://example.com/photo1.jpg\nhttps://example.com/photo2.jpg"} />
+            <PhotoUploader photos={form.photos} onChange={urls => set("photos", urls)} />
           </div>
+
           <div className="form-group" style={{ gridColumn: "1/-1" }}>
             <label className="form-label">Description</label>
             <textarea value={form.description} onChange={e => set("description", e.target.value)} rows={3} placeholder="Vehicle description..." />

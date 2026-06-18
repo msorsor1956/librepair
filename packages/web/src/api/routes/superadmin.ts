@@ -7,6 +7,16 @@ import type { HonoVariables } from "../types";
 import { auth } from "../auth";
 import Stripe from "stripe";
 import { execSync } from "child_process";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+
+const s3 = new S3Client({
+  region: "auto",
+  endpoint: process.env.S3_ENDPOINT!,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+  },
+});
 
 const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY ?? "sk_test_placeholder", { apiVersion: "2025-05-28.basil" });
 
@@ -441,6 +451,42 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
   /* ══════════════════════════════════════════════════
      INVENTORY MANAGEMENT (proxy / full access)
   ══════════════════════════════════════════════════ */
+
+  /* ══════════════════════════════════════════════════
+     INVENTORY IMAGE UPLOAD → Cloudflare R2
+  ══════════════════════════════════════════════════ */
+  .post("/inventory/upload-image", requireAuth, requireSuperAdmin, async (c) => {
+    const formData = await c.req.formData();
+    const file = formData.get("file") as File | null;
+    if (!file) return c.json({ message: "No file provided" }, 400);
+
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      return c.json({ message: "Only JPG, PNG, and WebP images are allowed" }, 400);
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      return c.json({ message: "File too large. Max 10MB." }, 400);
+    }
+
+    const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+    const key = `inventory/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const arrayBuffer = await file.arrayBuffer();
+
+    await s3.send(new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET!,
+      Key: key,
+      Body: Buffer.from(arrayBuffer),
+      ContentType: file.type,
+      // ACL not supported on R2
+    }));
+
+    // Build public URL
+    // S3_PUBLIC_URL can be a custom domain or the R2 public bucket URL
+    const base = (process.env.S3_PUBLIC_URL ?? `${process.env.S3_ENDPOINT}/${process.env.S3_BUCKET}`).replace(/\/$/, "");
+    const publicUrl = `${base}/${key}`;
+
+    return c.json({ url: publicUrl, key }, 200);
+  })
 
   .get("/inventory", requireAuth, requireSuperAdmin, async (c) => {
     const rows = await db.select().from(schema.carInventory).orderBy(desc(schema.carInventory.createdAt));
