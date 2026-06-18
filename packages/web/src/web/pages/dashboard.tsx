@@ -26,11 +26,11 @@ export default function DashboardPage() {
   const vehicles = useQuery({ queryKey: ["vehicles"], queryFn: async () => (await api.vehicles.$get()).json() });
   const appointments = useQuery({ queryKey: ["appointments"], queryFn: async () => (await api.appointments.$get()).json() });
   const payments = useQuery({ queryKey: ["payments"], queryFn: async () => (await api.payments.$get()).json() });
-  const notifications = useQuery({ queryKey: ["notifications"], queryFn: async () => (await api.notifications.$get()).json() });
+  const notifications = useQuery({ queryKey: ["notifications"], queryFn: async () => { const res = await api.notifications.$get(); const d = await res.json() as any; return Array.isArray(d) ? d : (d.notifications ?? []); } });
 
   const aptList: any[] = Array.isArray(appointments.data) ? appointments.data : [];
   const payList: any[] = Array.isArray(payments.data) ? payments.data : [];
-  const notifList: any[] = Array.isArray(notifications.data) ? notifications.data : [];
+  const notifList: any[] = Array.isArray(notifications.data) ? notifications.data : (notifications.data ?? []);
   const vehicleList: any[] = Array.isArray(vehicles.data) ? vehicles.data : [];
 
   const activeApts = aptList.filter(a => ["pending", "confirmed", "in-progress"].includes(a.status));

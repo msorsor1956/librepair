@@ -14,14 +14,28 @@ const typeIcons: Record<string, React.ReactNode> = {
 
 export default function NotificationsPage() {
   const qc = useQueryClient();
-  const notifs = useQuery({ queryKey: ["notifications"], queryFn: async () => (await api.notifications.$get()).json() });
+  const notifs = useQuery({
+    queryKey: ["notifications"],
+    queryFn: async () => {
+      const res = await api.notifications.$get();
+      const data = await res.json() as any;
+      // API returns { notifications: [...] }
+      return Array.isArray(data) ? data : (data.notifications ?? []);
+    }
+  });
 
   const markRead = useMutation({
-    mutationFn: async (id: number) => (await api.notifications[":id"].read.$put({ param: { id: String(id) } })).json(),
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/api/notifications/${id}/read`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
+      });
+      return res.json();
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
-  const list = notifs.data?.notifications ?? [];
+  const list: any[] = notifs.data ?? [];
 
   return (
     <DashboardLayout title="Notifications">

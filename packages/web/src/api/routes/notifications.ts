@@ -15,7 +15,7 @@ export const notificationsRouter = new Hono<{ Variables: HonoVariables }>()
       .where(eq(schema.notifications.userId, user.id))
       .orderBy(desc(schema.notifications.createdAt))
       .limit(50);
-    return c.json(notifications, 200);
+    return c.json({ notifications }, 200);
   })
   .put("/:id/read", requireAuth, async (c) => {
     const id = parseInt(c.req.param("id"));

@@ -8,7 +8,7 @@ export default function Notifications() {
     userId: '',
     title: '',
     message: '',
-    type: 'info',
+    type: 'system',
   })
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ success?: boolean; message?: string } | null>(null)
@@ -106,10 +106,11 @@ export default function Notifications() {
             onChange={e => setForm({ ...form, type: e.target.value })}
             style={inputStyle}
           >
-            <option value="info">Info</option>
-            <option value="warning">Warning</option>
-            <option value="success">Success</option>
-            <option value="error">Error</option>
+            <option value="system">System</option>
+            <option value="appointment">Appointment</option>
+            <option value="payment">Payment</option>
+            <option value="reminder">Reminder</option>
+            <option value="promotion">Promotion</option>
           </select>
         </div>
 
