@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1071.0",
+    "@aws-sdk/s3-request-presigner": "^3.1071.0",
     "@better-auth/expo": "1.4.22",
     "@better-auth/utils": "^0.4.2",
     "@libsql/client": "^0.17.2",

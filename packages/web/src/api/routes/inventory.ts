@@ -4,6 +4,31 @@ import * as schema from "../database/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { authMiddleware, requireAuth } from "../middleware/auth";
 import type { HonoVariables } from "../types";
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
+const r2Client = new S3Client({
+  region: "auto",
+  endpoint: process.env.S3_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID ?? "",
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "",
+  },
+});
+const R2_ENDPOINT = process.env.S3_ENDPOINT ?? "";
+const R2_BUCKET = process.env.S3_BUCKET ?? "";
+
+async function toPresignedUrl(url: string): Promise<string> {
+  if (!url || !R2_ENDPOINT || !url.startsWith(R2_ENDPOINT)) return url;
+  try {
+    const bucketPrefix = `${R2_ENDPOINT}/${R2_BUCKET}/`;
+    const key = url.startsWith(bucketPrefix) ? url.slice(bucketPrefix.length) : url.split("/").slice(-2).join("/");
+    const cmd = new GetObjectCommand({ Bucket: R2_BUCKET, Key: key });
+    return await getSignedUrl(r2Client, cmd, { expiresIn: 3600 });
+  } catch {
+    return url;
+  }
+}
 
 async function getDbUser(userId: string) {
   const [u] = await db.select().from(schema.users).where(eq(schema.users.id, userId));
@@ -27,7 +52,7 @@ export const inventoryRouter = new Hono<{ Variables: HonoVariables }>()
       .from(schema.carInventory)
       .where(eq(schema.carInventory.published, true))
       .orderBy(desc(schema.carInventory.createdAt));
-    return c.json({ listings: listings.map(parsePhotos) }, 200);
+    return c.json({ listings: await Promise.all(listings.map(parsePhotos)) }, 200);
   })
 
   // ── PUBLIC: get single listing ──
@@ -38,7 +63,7 @@ export const inventoryRouter = new Hono<{ Variables: HonoVariables }>()
       .from(schema.carInventory)
       .where(eq(schema.carInventory.id, id));
     if (!listing) return c.json({ message: "Not found" }, 404);
-    return c.json(parsePhotos(listing), 200);
+    return c.json(await parsePhotos(listing), 200);
   })
 
   // ── ADMIN: create listing ──
@@ -68,7 +93,7 @@ export const inventoryRouter = new Hono<{ Variables: HonoVariables }>()
         featured: body.featured ?? false,
       })
       .returning();
-    return c.json(parsePhotos(created), 201);
+    return c.json(await parsePhotos(created), 201);
   })
 
   // ── ADMIN: update listing ──
@@ -97,7 +122,7 @@ export const inventoryRouter = new Hono<{ Variables: HonoVariables }>()
       .where(eq(schema.carInventory.id, id))
       .returning();
     if (!updated) return c.json({ message: "Not found" }, 404);
-    return c.json(parsePhotos(updated), 200);
+    return c.json(await parsePhotos(updated), 200);
   })
 
   // ── ADMIN: delete listing ──
@@ -111,11 +136,14 @@ export const inventoryRouter = new Hono<{ Variables: HonoVariables }>()
     return c.json({ message: "Deleted" }, 200);
   });
 
-function parsePhotos(listing: any) {
+async function parsePhotos(listing: any) {
   try {
     listing.photos = typeof listing.photos === "string" ? JSON.parse(listing.photos) : listing.photos ?? [];
-  } catch {
-    listing.photos = [];
-  }
+  } catch { listing.photos = []; }
+  try {
+    listing.videos = typeof listing.videos === "string" ? JSON.parse(listing.videos) : listing.videos ?? [];
+  } catch { listing.videos = []; }
+  listing.photos = await Promise.all((listing.photos as string[]).map(toPresignedUrl));
+  listing.videos = await Promise.all((listing.videos as string[]).map(toPresignedUrl));
   return listing;
 }

@@ -8,6 +8,34 @@ import { auth } from "../auth";
 import Stripe from "stripe";
 import { execSync } from "child_process";
 import * as firebaseAdmin from "firebase-admin";
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
+const r2Client = new S3Client({
+  region: "auto",
+  endpoint: process.env.S3_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID ?? "",
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "",
+  },
+});
+
+const R2_ENDPOINT = process.env.S3_ENDPOINT ?? "";
+const R2_BUCKET = process.env.S3_BUCKET ?? "";
+
+async function toPresignedUrl(url: string): Promise<string> {
+  // Only presign private R2 URLs (not Firebase or other public URLs)
+  if (!url || !R2_ENDPOINT || !url.startsWith(R2_ENDPOINT)) return url;
+  try {
+    // Extract key: everything after the bucket segment
+    const bucketPrefix = `${R2_ENDPOINT}/${R2_BUCKET}/`;
+    const key = url.startsWith(bucketPrefix) ? url.slice(bucketPrefix.length) : url.split("/").slice(-2).join("/");
+    const cmd = new GetObjectCommand({ Bucket: R2_BUCKET, Key: key });
+    return await getSignedUrl(r2Client, cmd, { expiresIn: 3600 });
+  } catch {
+    return url;
+  }
+}
 
 function getAdminApp(): firebaseAdmin.app.App {
   if (firebaseAdmin.apps.length > 0) return firebaseAdmin.apps[0]!;
@@ -502,7 +530,7 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
 
   .get("/inventory", requireAuth, requireSuperAdmin, async (c) => {
     const rows = await db.select().from(schema.carInventory).orderBy(desc(schema.carInventory.createdAt));
-    return c.json({ listings: rows.map(parsePhotos) }, 200);
+    return c.json({ listings: await Promise.all(rows.map(parsePhotos)) }, 200);
   })
 
   .post("/inventory", requireAuth, requireSuperAdmin, async (c) => {
@@ -534,7 +562,7 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
       status: body.status ?? "available",
       featured: body.featured ?? false,
     }).returning();
-    return c.json(parsePhotos(created), 201);
+    return c.json(await parsePhotos(created), 201);
   })
 
   .patch("/inventory/:id", requireAuth, requireSuperAdmin, async (c) => {
@@ -552,7 +580,7 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     if (body.videos !== undefined) updates.videos = Array.isArray(body.videos) ? JSON.stringify(body.videos) : body.videos;
     const [updated] = await db.update(schema.carInventory).set(updates).where(eq(schema.carInventory.id, id)).returning();
     if (!updated) return c.json({ message: "Not found" }, 404);
-    return c.json(parsePhotos(updated), 200);
+    return c.json(await parsePhotos(updated), 200);
   })
 
   .delete("/inventory/:id", requireAuth, requireSuperAdmin, async (c) => {
@@ -1157,12 +1185,19 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     return c.json({ eventId, eventUrl }, 201);
   });
 
-function parsePhotos(listing: any) {
+function parsePhotosSync(listing: any) {
   try {
     listing.photos = typeof listing.photos === "string" ? JSON.parse(listing.photos) : listing.photos ?? [];
   } catch { listing.photos = []; }
   try {
     listing.videos = typeof listing.videos === "string" ? JSON.parse(listing.videos) : listing.videos ?? [];
   } catch { listing.videos = []; }
+  return listing;
+}
+
+async function parsePhotos(listing: any) {
+  parsePhotosSync(listing);
+  listing.photos = await Promise.all((listing.photos as string[]).map(toPresignedUrl));
+  listing.videos = await Promise.all((listing.videos as string[]).map(toPresignedUrl));
   return listing;
 }
