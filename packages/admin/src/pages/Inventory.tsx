@@ -100,7 +100,7 @@ export default function InventoryPage() {
               {/* Photo */}
               <div style={{ height: 160, background: "#1a1a1a", position: "relative", overflow: "hidden" }}>
                 {car.photos?.[0] ? (
-                  <img src={car.photos[0]} alt={car.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={car.photos[0]} alt={car.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { const t = e.target as HTMLImageElement; t.style.display="none"; }} />
                 ) : (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#333", fontSize: 13 }}>No photo</div>
                 )}
@@ -251,9 +251,25 @@ function PhotoUploader({ photos, onChange }: { photos: string[]; onChange: (urls
 
   function addWebUrl() {
     setUrlError("");
-    const url = urlInput.trim();
+    let url = urlInput.trim();
     if (!url) return;
     try { new URL(url); } catch { setUrlError("Invalid URL"); return; }
+
+    // Convert Unsplash page URLs to direct CDN image URLs
+    const unsplashPage = url.match(/unsplash\.com\/photos\/[^/]+-([a-zA-Z0-9_-]+)$/);
+    if (unsplashPage) {
+      url = `https://images.unsplash.com/photo-${unsplashPage[1]}?auto=format&fit=crop&w=1200&q=80`;
+    }
+
+    // Warn if URL doesn't look like a direct image
+    const looksLikeImage = /\.(jpe?g|png|webp|gif|avif|svg)(\?|$)/i.test(url) ||
+      /images\.unsplash\.com/.test(url) ||
+      /cdn\.|cloudflare\.|r2\.|s3\.|storage\.|imgur\.com|pexels\.com\/photo/.test(url);
+    if (!looksLikeImage) {
+      setUrlError("This looks like a webpage, not an image. Paste a direct image URL (ending in .jpg, .png, .webp, etc.)");
+      return;
+    }
+
     if (photos.length >= 9) { setUrlError("Max 9 photos"); return; }
     onChange([...photos, url]);
     setUrlInput("");
@@ -281,7 +297,7 @@ function PhotoUploader({ photos, onChange }: { photos: string[]; onChange: (urls
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
           {photos.map((url, i) => (
             <div key={i} style={{ position: "relative", aspectRatio: "4/3", borderRadius: 8, overflow: "hidden", background: "#1a1a1a", border: i === 0 ? "2px solid #e02020" : "1px solid rgba(255,255,255,0.08)" }}>
-              <img src={url} alt={`Photo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).src = ""; }} />
+              <img src={url} alt={`Photo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { const t = e.target as HTMLImageElement; t.style.display="none"; t.parentElement!.style.background="#1a1a1a"; t.insertAdjacentHTML("afterend", '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:#555">⚠ broken</div>'); }} />
               {i === 0 && (
                 <div style={{ position: "absolute", top: 4, left: 4, background: "#e02020", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 4 }}>COVER</div>
               )}
