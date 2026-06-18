@@ -412,7 +412,7 @@ function VideoUploader({ videos, onChange }: { videos: string[]; onChange: (urls
               <div style={{ fontSize: 11, color: "#555", marginTop: 4 }}>MP4 · MOV · WebM · Max 200MB · up to {5 - videos.length} more</div>
             </>
           )}
-          <input ref={fileRef} type="file" accept={VIDEO_TYPES} capture="camcorder" multiple hidden onChange={e => e.target.files && uploadVideos(Array.from(e.target.files))} />
+          <input ref={fileRef} type="file" accept={VIDEO_TYPES} multiple hidden onChange={e => e.target.files && uploadVideos(Array.from(e.target.files))} />
         </div>
       )}
     </div>
