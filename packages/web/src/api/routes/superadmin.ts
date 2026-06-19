@@ -7,7 +7,9 @@ import type { HonoVariables } from "../types";
 import { auth } from "../auth";
 import Stripe from "stripe";
 import { execSync } from "child_process";
-import * as firebaseAdmin from "firebase-admin";
+import { getApps, initializeApp, cert } from "firebase-admin/app";
+import type { App } from "firebase-admin/app";
+import { getStorage } from "firebase-admin/storage";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -47,14 +49,15 @@ async function toPresignedUrl(url: string): Promise<string> {
   }
 }
 
-function getAdminApp(): firebaseAdmin.app.App {
-  if (firebaseAdmin.apps.length > 0) return firebaseAdmin.apps[0]!;
-  return firebaseAdmin.initializeApp({
-    credential: firebaseAdmin.credential.cert({
+function getAdminApp(): App {
+  const apps = getApps();
+  if (apps.length > 0) return apps[0]!;
+  return initializeApp({
+    credential: cert({
       projectId: process.env.FIREBASE_PROJECT_ID ?? "librepair-77afa",
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    } as firebaseAdmin.ServiceAccount),
+    }),
     storageBucket: process.env.FIREBASE_STORAGE_BUCKET ?? "librepair-77afa.firebasestorage.app",
   });
 }
@@ -529,7 +532,7 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
 
     // Upload to Firebase Storage
     const adminApp = getAdminApp();
-    const bucket = firebaseAdmin.storage(adminApp).bucket();
+    const bucket = getStorage(adminApp).bucket();
     const fileRef = bucket.file(key);
     await fileRef.save(buffer, { contentType: file.type, resumable: false });
     await fileRef.makePublic();
