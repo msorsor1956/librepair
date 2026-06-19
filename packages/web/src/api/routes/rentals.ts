@@ -24,9 +24,9 @@ function getAdminApp(): firebaseAdmin.app.App {
     credential: firebaseAdmin.credential.cert({
       projectId: process.env.FIREBASE_PROJECT_ID ?? "librepair-77afa",
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: (process.env.FIREBASE_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
-    }),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET ?? "librepair-77afa.appspot.com",
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    } as firebaseAdmin.ServiceAccount),
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET ?? "librepair-77afa.firebasestorage.app",
   });
 }
 
@@ -230,24 +230,30 @@ export const rentalsRouter = new Hono<{ Variables: HonoVariables }>()
 
   // ─── ADMIN: upload vehicle photo ──────────────────────────────────────────
   .post("/admin/upload-photo", authMiddleware, requireAuth, requireAdmin, async (c) => {
-    const formData = await c.req.formData();
-    const file = formData.get("file") as File | null;
-    if (!file) return c.json({ message: "No file provided" }, 400);
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"];
-    if (!allowedTypes.includes(file.type)) return c.json({ message: "Images only (JPG, PNG, WebP)" }, 400);
-    if (file.size > 25 * 1024 * 1024) return c.json({ message: "Max 25MB" }, 400);
-    const extMap: Record<string, string> = { "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "jpg", "image/heif": "jpg" };
-    const ext = extMap[file.type] ?? "jpg";
-    const key = `rental/photos/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const buf = Buffer.from(await file.arrayBuffer());
-    // Upload to Firebase Storage (public)
-    const adminApp = getAdminApp();
-    const bucket = firebaseAdmin.storage(adminApp).bucket();
-    const fileRef = bucket.file(key);
-    await fileRef.save(buf, { contentType: file.type, resumable: false });
-    await fileRef.makePublic();
-    const publicUrl = fileRef.publicUrl();
-    return c.json({ url: publicUrl, key }, 200);
+    try {
+      const formData = await c.req.formData();
+      const file = formData.get("file") as File | null;
+      if (!file) return c.json({ message: "No file provided" }, 400);
+      const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"];
+      if (!allowedTypes.includes(file.type)) return c.json({ message: "Images only (JPG, PNG, WebP)" }, 400);
+      if (file.size > 25 * 1024 * 1024) return c.json({ message: "Max 25MB per file" }, 400);
+      const extMap: Record<string, string> = { "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "jpg", "image/heif": "jpg" };
+      const ext = extMap[file.type] ?? "jpg";
+      const key = `rental/photos/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const buf = Buffer.from(await file.arrayBuffer());
+
+      // Upload to Firebase Storage (public permanent URLs)
+      const adminApp = getAdminApp();
+      const bucket = firebaseAdmin.storage(adminApp).bucket();
+      const fileRef = bucket.file(key);
+      await fileRef.save(buf, { contentType: file.type, resumable: false });
+      await fileRef.makePublic();
+      const publicUrl = fileRef.publicUrl();
+      return c.json({ url: publicUrl, key }, 200);
+    } catch (err: any) {
+      console.error("[rental upload-photo] ERROR:", err?.message ?? err);
+      return c.json({ message: err?.message ?? "Upload failed — server error" }, 500);
+    }
   })
 
   // ─── ADMIN: list all rental vehicles ─────────────────────────────────────
