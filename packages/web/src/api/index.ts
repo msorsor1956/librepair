@@ -15,6 +15,7 @@ import { phoneAuthRouter } from "./routes/phone-auth";
 import { customerRouter } from "./routes/customer";
 import { inventoryRouter } from "./routes/inventory";
 import { superAdminRouter } from "./routes/superadmin";
+import { rentalsRouter } from "./routes/rentals";
 import { db } from "./database";
 import * as schema from "./database/schema";
 import { eq, and, gt } from "drizzle-orm";
@@ -50,6 +51,7 @@ const app = new Hono()
   .route("/customer", customerRouter)
   .route("/inventory", inventoryRouter)
   .route("/superadmin", superAdminRouter)
+  .route("/rentals", rentalsRouter)
   // Public: active announcements for frontend banner
   .get("/announcements", async (c) => {
     const now = new Date();

@@ -18,6 +18,7 @@ import ReviewsPage from "./pages/Reviews";
 import RemindersPage from "./pages/Reminders";
 import InvoicesPage from "./pages/Invoices";
 import ReportsPage from "./pages/Reports";
+import RentalsPage from "./pages/Rentals";
 
 export type AdminUser = { id: string; email: string; name: string; role: string };
 
@@ -66,6 +67,7 @@ function App() {
         <Route path="/reminders" component={RemindersPage} />
         <Route path="/invoices" component={InvoicesPage} />
         <Route path="/reports" component={ReportsPage} />
+        <Route path="/rentals" component={RentalsPage} />
         <Route path="/notifications" component={NotificationsPage} />
         <Route path="/announcements" component={AnnouncementsPage} />
         <Route>

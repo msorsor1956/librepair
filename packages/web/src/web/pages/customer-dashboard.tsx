@@ -10,7 +10,7 @@ import {
   ChevronRight, AlertCircle, TrendingUp, Shield
 } from "lucide-react";
 
-type Tab = "overview" | "vehicles" | "appointments" | "history" | "invoices" | "payments" | "reminders" | "notifications" | "profile" | "support";
+type Tab = "overview" | "vehicles" | "appointments" | "history" | "invoices" | "payments" | "reminders" | "notifications" | "profile" | "support" | "rentals";
 
 export default function CustomerDashboardPage() {
   const [, navigate] = useLocation();
@@ -78,6 +78,7 @@ export default function CustomerDashboardPage() {
     { id: "invoices", label: "Invoices", icon: FileText, badge: invoices.filter(i => i.status === "sent" || i.status === "overdue").length },
     { id: "payments", label: "Payments", icon: CreditCard },
     { id: "reminders", label: "Oil Reminders", icon: AlertCircle },
+    { id: "rentals", label: "Van Rentals", icon: Car },
     { id: "notifications", label: "Notifications", icon: Bell, badge: unreadCount },
     { id: "profile", label: "My Profile", icon: User },
     { id: "support", label: "Support Chat", icon: MessageCircle },
@@ -165,6 +166,7 @@ export default function CustomerDashboardPage() {
           {tab === "reminders" && <RemindersTab vehicles={vehicles} />}
           {tab === "notifications" && <NotificationsTab notifications={notifications} onRefresh={loadData} />}
           {tab === "profile" && <ProfileTab session={session} onRefresh={loadData} />}
+          {tab === "rentals" && <RentalsTab />}
           {tab === "support" && <SupportTab session={session} />}
         </div>
       </main>
@@ -641,6 +643,110 @@ function SupportTab({ session }: { session: any }) {
             className="flex-1 px-4 py-2.5 rounded-xl text-sm outline-none" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }} />
           <button onClick={send} className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white" style={{ backgroundColor: "var(--color-red)" }}>Send</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Rentals Tab ────────────────────────────────────────────────────────────────
+function RentalsTab() {
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState<string | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    apiFetch("/api/rentals/my-bookings", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } })
+      .then((r: any) => setBookings(r.bookings ?? r ?? []))
+      .catch(() => setBookings([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const cancel = async (id: string) => {
+    if (!confirm("Cancel this booking?")) return;
+    setCancelling(id);
+    try {
+      await apiFetch(`/api/rentals/bookings/${id}/cancel`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` },
+      });
+      load();
+    } catch { alert("Failed to cancel. Try again."); }
+    finally { setCancelling(null); }
+  };
+
+  const active = bookings.filter(b => b.status === "active").length;
+  const upcoming = bookings.filter(b => b.status === "approved" || b.status === "pending").length;
+  const totalPaid = bookings.filter(b => b.status === "completed" || b.status === "active").reduce((s, b) => s + Number(b.totalAmount ?? 0), 0);
+
+  const statusColor: Record<string, string> = {
+    pending: "#f59e0b", approved: "#3b82f6", active: "#22c55e",
+    completed: "#6b7280", rejected: "#e02020", cancelled: "#6b7280", no_show: "#e02020",
+  };
+
+  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: "var(--color-surface2)", borderTopColor: "var(--color-red)" }} /></div>;
+
+  return (
+    <div className="space-y-6">
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: "Active Rentals", value: active, color: "#22c55e" },
+          { label: "Upcoming / Pending", value: upcoming, color: "#3b82f6" },
+          { label: "Total Spent", value: `${totalPaid.toFixed(2)}`, color: "var(--color-red)" },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="glass rounded-xl p-5">
+            <p className="text-xs mb-1" style={{ color: "var(--color-muted)", fontFamily: "Poppins" }}>{label}</p>
+            <p className="text-2xl font-bold" style={{ color, fontFamily: "Rajdhani" }}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Booking cards */}
+      {bookings.length === 0 ? (
+        <EmptyState icon={Car} title="No van bookings yet" desc="Visit our Van For Rent page to book a vehicle."
+          action={<a href="/van-for-rent" className="mt-4 inline-block px-5 py-2.5 rounded-lg text-sm font-semibold text-white" style={{ backgroundColor: "var(--color-red)" }}>Browse Vans</a>} />
+      ) : (
+        <div className="space-y-4">
+          {bookings.map((b: any) => (
+            <div key={b.id} className="glass rounded-xl p-5">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="font-semibold" style={{ fontFamily: "Rajdhani", fontSize: 17 }}>{b.vehicleName ?? b.vehicle?.name ?? "Van Rental"}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={{ backgroundColor: `${statusColor[b.status]}22`, color: statusColor[b.status] }}>{b.status}</span>
+                  </div>
+                  <p className="text-xs mb-2" style={{ color: "var(--color-muted)" }}>Booking #{b.id?.slice(0, 8).toUpperCase()}</p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                    <span style={{ color: "var(--color-muted)" }}>Pickup</span>
+                    <span>{b.startDate ? new Date(b.startDate).toLocaleDateString() : "—"}</span>
+                    <span style={{ color: "var(--color-muted)" }}>Return</span>
+                    <span>{b.endDate ? new Date(b.endDate).toLocaleDateString() : "—"}</span>
+                    <span style={{ color: "var(--color-muted)" }}>Total</span>
+                    <span className="font-semibold" style={{ color: "var(--color-red)" }}>${Number(b.totalAmount ?? 0).toFixed(2)}</span>
+                    {b.paymentMethod && <><span style={{ color: "var(--color-muted)" }}>Payment</span><span className="capitalize">{b.paymentMethod.replace("_", " ")}</span></>}
+                  </div>
+                  {b.notes && <p className="mt-2 text-xs" style={{ color: "var(--color-muted)" }}>Note: {b.notes}</p>}
+                </div>
+                {(b.status === "pending" || b.status === "approved") && (
+                  <button onClick={() => cancel(b.id)} disabled={cancelling === b.id}
+                    className="shrink-0 px-4 py-2 rounded-lg text-sm font-medium"
+                    style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "var(--color-red)", border: "1px solid rgba(224,32,32,0.3)" }}>
+                    {cancelling === b.id ? "Cancelling..." : "Cancel"}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="text-center">
+        <a href="/van-for-rent" className="inline-block px-6 py-3 rounded-xl text-sm font-semibold text-white" style={{ backgroundColor: "var(--color-red)" }}>
+          + Book a Van
+        </a>
       </div>
     </div>
   );

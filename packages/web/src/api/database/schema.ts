@@ -150,7 +150,7 @@ export const notifications = sqliteTable("notifications", {
   userId: text("user_id").notNull().references(() => users.id),
   title: text("title").notNull(),
   message: text("message").notNull(),
-  type: text("type", { enum: ["appointment", "payment", "reminder", "system", "promotion"] }).notNull().default("system"),
+  type: text("type", { enum: ["appointment", "payment", "reminder", "system", "promotion", "rental", "support"] }).notNull().default("system"),
   isRead: integer("is_read", { mode: "boolean" }).default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
@@ -158,8 +158,8 @@ export const notifications = sqliteTable("notifications", {
 // Car Inventory (Vehicles for Sale)
 export const carInventory = sqliteTable("car_inventory", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  stockNumber: text("stock_number").unique(),   // 6-digit e.g. "LR8472"
-  inventoryId: text("inventory_id").unique(),   // 9-digit e.g. "LR-482930-1"
+  stockNumber: text("stock_number").unique(),
+  inventoryId: text("inventory_id").unique(),
   title: text("title").notNull(),
   make: text("make").notNull(),
   model: text("model").notNull(),
@@ -170,8 +170,8 @@ export const carInventory = sqliteTable("car_inventory", {
   condition: text("condition", { enum: ["excellent", "good", "fair"] }).notNull().default("good"),
   description: text("description"),
   videoUrl: text("video_url"),
-  photos: text("photos").default("[]"), // JSON array of up to 9 photo URLs
-  videos: text("videos").default("[]"), // JSON array of video URLs (mp4, mov, webm)
+  photos: text("photos").default("[]"),
+  videos: text("videos").default("[]"),
   contactPhone: text("contact_phone"),
   contactEmail: text("contact_email"),
   status: text("status", { enum: ["available", "sold", "reserved"] }).notNull().default("available"),
@@ -181,15 +181,86 @@ export const carInventory = sqliteTable("car_inventory", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
-// Site-wide Announcements (pushed by super admin to frontend)
+// ── RENTAL VEHICLES ──────────────────────────────────────────────────────────
+export const rentalVehicles = sqliteTable("rental_vehicles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  make: text("make").notNull(),
+  model: text("model").notNull(),
+  year: integer("year").notNull(),
+  color: text("color"),
+  licensePlate: text("license_plate"),
+  vin: text("vin"),
+  mileage: integer("mileage").default(0),
+  fuelType: text("fuel_type", { enum: ["gasoline", "diesel", "electric", "hybrid"] }).notNull().default("gasoline"),
+  transmission: text("transmission", { enum: ["automatic", "manual"] }).notNull().default("automatic"),
+  seats: integer("seats").default(5),
+  dailyRate: real("daily_rate").notNull().default(100),
+  depositAmount: real("deposit_amount").notNull().default(25),
+  description: text("description"),
+  photos: text("photos").default("[]"), // JSON array of photo URLs
+  isAvailable: integer("is_available", { mode: "boolean" }).notNull().default(true),
+  published: integer("published", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+// ── RENTAL BOOKINGS ──────────────────────────────────────────────────────────
+export const rentalBookings = sqliteTable("rental_bookings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  bookingRef: text("booking_ref").notNull().unique(), // e.g. "LR-RNT-001234"
+  customerId: text("customer_id").notNull().references(() => users.id),
+  vehicleId: integer("vehicle_id").notNull().references(() => rentalVehicles.id),
+  startDate: integer("start_date", { mode: "timestamp" }).notNull(),
+  endDate: integer("end_date", { mode: "timestamp" }).notNull(),
+  totalDays: integer("total_days").notNull(),
+  dailyRate: real("daily_rate").notNull(),
+  depositAmount: real("deposit_amount").notNull().default(25),
+  totalAmount: real("total_amount").notNull(), // dailyRate * totalDays
+  depositPaid: integer("deposit_paid", { mode: "boolean" }).notNull().default(false),
+  balanceDue: real("balance_due").notNull().default(0),
+  status: text("status", {
+    enum: ["pending", "approved", "rejected", "cancelled", "active", "completed", "no_show"]
+  }).notNull().default("pending"),
+  paymentMethod: text("payment_method", {
+    enum: ["credit_card", "debit_card", "cashapp", "zelle", "paypal", "cash"]
+  }),
+  depositTransactionId: text("deposit_transaction_id"),
+  pickupAt: integer("pickup_at", { mode: "timestamp" }),
+  returnAt: integer("return_at", { mode: "timestamp" }),
+  pickupMileage: integer("pickup_mileage"),
+  returnMileage: integer("return_mileage"),
+  pickupNotes: text("pickup_notes"),
+  returnNotes: text("return_notes"),
+  customerNotes: text("customer_notes"),
+  adminNotes: text("admin_notes"),
+  agreementUrl: text("agreement_url"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+// ── RENTAL PAYMENTS ──────────────────────────────────────────────────────────
+export const rentalPayments = sqliteTable("rental_payments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  bookingId: integer("booking_id").notNull().references(() => rentalBookings.id),
+  customerId: text("customer_id").notNull().references(() => users.id),
+  amount: real("amount").notNull(),
+  type: text("type", { enum: ["deposit", "balance", "full", "refund"] }).notNull(),
+  method: text("method", { enum: ["credit_card", "debit_card", "cashapp", "zelle", "paypal", "cash"] }).notNull(),
+  status: text("status", { enum: ["pending", "paid", "failed", "refunded"] }).notNull().default("pending"),
+  transactionId: text("transaction_id"),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+// Site-wide Announcements
 export const announcements = sqliteTable("announcements", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   title: text("title").notNull(),
   message: text("message").notNull(),
   type: text("type", { enum: ["info", "warning", "promo", "alert"] }).notNull().default("info"),
   active: integer("active", { mode: "boolean" }).notNull().default(true),
-  link: text("link"),           // optional CTA link
-  linkLabel: text("link_label"), // e.g. "Browse Inventory"
+  link: text("link"),
+  linkLabel: text("link_label"),
   expiresAt: integer("expires_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });

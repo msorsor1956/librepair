@@ -23,6 +23,7 @@ import AdminPage from "./pages/admin";
 import PaymentsPage from "./pages/payments";
 import MechanicPage from "./pages/mechanic";
 import CarsForSalePage from "./pages/cars-for-sale";
+import VanForRentPage from "./pages/van-for-rent";
 
 function App() {
   return (
@@ -57,6 +58,7 @@ function App() {
         <Route path="/admin" component={AdminPage} />
         <Route path="/mechanic" component={MechanicPage} />
         <Route path="/cars-for-sale" component={CarsForSalePage} />
+        <Route path="/van-for-rent" component={VanForRentPage} />
       </Switch>
       {import.meta.env.DEV && <AgentFeedback />}
     </Provider>

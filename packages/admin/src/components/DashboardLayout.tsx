@@ -36,6 +36,7 @@ const navGroups: (NavItem | NavGroup)[] = [
       { href: "/services", label: "Services", icon: Wrench },
       { href: "/vehicles", label: "Vehicles", icon: Car },
       { href: "/inventory", label: "Car Inventory", icon: Car },
+      { href: "/rentals", label: "Van For Rent", icon: Car },
     ],
   },
   {

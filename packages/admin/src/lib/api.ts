@@ -38,3 +38,19 @@ export const api = {
   put: (path: string, body: unknown) => request("PUT", path, body),
   delete: (path: string) => request("DELETE", path),
 };
+
+/** Raw fetch wrapper that forwards the admin auth token. Accepts absolute URLs. */
+export async function apiFetch(url: string, init: RequestInit = {}): Promise<any> {
+  const headers: Record<string, string> = { ...(init.headers as Record<string, string> ?? {}) };
+  if (_token && !headers["Authorization"]) headers["Authorization"] = `Bearer ${_token}`;
+  const res = await fetch(url, { ...init, headers, credentials: "include" });
+  const newToken = res.headers.get("set-auth-token");
+  if (newToken) setToken(newToken);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+    throw new Error(err.message ?? `HTTP ${res.status}`);
+  }
+  // Return empty object for 204 No Content
+  if (res.status === 204) return {};
+  return res.json();
+}
