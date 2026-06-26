@@ -16,6 +16,7 @@ import { customerRouter } from "./routes/customer";
 import { inventoryRouter } from "./routes/inventory";
 import { superAdminRouter } from "./routes/superadmin";
 import { rentalsRouter } from "./routes/rentals";
+import { contactRouter } from "./routes/contact";
 import { db } from "./database";
 import * as schema from "./database/schema";
 import { eq, and, gt } from "drizzle-orm";
@@ -25,6 +26,9 @@ const ALLOWED_ORIGINS = [
   "https://librepair-sonnietechnologyllc.wasmer.app",
   "https://librepair-admin.wasmer.app",
   "https://librepair-admin-sonnietechnologyllc.wasmer.app",
+  // Railway domains — added when known
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  ...(process.env.ADMIN_URL ? [process.env.ADMIN_URL] : []),
 ];
 
 const app = new Hono()
@@ -52,6 +56,7 @@ const app = new Hono()
   .route("/inventory", inventoryRouter)
   .route("/superadmin", superAdminRouter)
   .route("/rentals", rentalsRouter)
+  .route("/contact", contactRouter)
   // Public: active announcements for frontend banner
   .get("/announcements", async (c) => {
     const now = new Date();

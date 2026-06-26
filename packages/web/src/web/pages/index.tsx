@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
 import {
   Wrench, Car, Zap, Shield, Star, Clock, MapPin, ChevronRight,
-  Phone, Mail, CheckCircle, ArrowRight, Gauge, Battery, Wind, Settings
+  Phone, Mail, CheckCircle, ArrowRight, Gauge, Battery, Wind, Settings, Send, Loader2
 } from "lucide-react";
 import { Navbar } from "../components/navbar";
 import { AnimatedLogo } from "../components/animated-logo";
@@ -41,6 +42,137 @@ const pricing = [
   { name: "Home Service", price: "$35", period: "booking fee", features: ["Mobile mechanic", "Priority scheduling", "SMS + email alerts", "Diagnostic report", "All Basic features"], highlight: true },
   { name: "Fleet", price: "Custom", period: "per vehicle", features: ["Unlimited bookings", "Dedicated dispatcher", "Fleet analytics", "Priority support", "Custom invoicing"], highlight: false },
 ];
+
+function ContactSection() {
+  const [form, setForm] = useState({ name: "", email: "", phone: "", subject: "", message: "" });
+  const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [errMsg, setErrMsg] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus("sending");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "Failed");
+      setStatus("success");
+      setForm({ name: "", email: "", phone: "", subject: "", message: "" });
+    } catch (err: any) {
+      setErrMsg(err.message ?? "Something went wrong. Please try again.");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <section id="contact" className="py-24 px-6 md:px-10" style={{ backgroundColor: "var(--color-surface)" }}>
+      <div className="max-w-[1280px] mx-auto">
+        <motion.div {...fadeUp} className="text-center mb-12">
+          <div className="text-sm font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--color-red)" }}>Contact</div>
+          <h2 className="text-4xl md:text-5xl font-bold mb-4" style={{ fontFamily: "Rajdhani" }}>GET IN TOUCH</h2>
+          <p className="max-w-xl mx-auto" style={{ color: "var(--color-silver)" }}>Have questions? Send us a message and our team will get back to you shortly.</p>
+        </motion.div>
+
+        <div className="grid md:grid-cols-2 gap-10 max-w-5xl mx-auto">
+          {/* Contact info */}
+          <motion.div {...fadeUp} className="space-y-6">
+            <div>
+              <h3 className="text-xl font-bold mb-4" style={{ fontFamily: "Rajdhani" }}>REACH US DIRECTLY</h3>
+              <div className="space-y-4">
+                <a href="tel:+1800LIBREPAIR" className="flex items-center gap-4 glass px-5 py-4 rounded-xl hover:border-red-500 transition-all group">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "var(--color-red)" }}>
+                    <Phone size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs mb-0.5" style={{ color: "var(--color-muted)" }}>Phone</div>
+                    <div className="font-semibold">1-800-LIBREPAIR</div>
+                  </div>
+                </a>
+                <a href="mailto:info@librepair.com" className="flex items-center gap-4 glass px-5 py-4 rounded-xl hover:border-red-500 transition-all group">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "var(--color-red)" }}>
+                    <Mail size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs mb-0.5" style={{ color: "var(--color-muted)" }}>Email</div>
+                    <div className="font-semibold">info@librepair.com</div>
+                  </div>
+                </a>
+                <a href="mailto:libsupport@librepair.com" className="flex items-center gap-4 glass px-5 py-4 rounded-xl hover:border-red-500 transition-all group">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "var(--color-red)" }}>
+                    <Mail size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs mb-0.5" style={{ color: "var(--color-muted)" }}>Support</div>
+                    <div className="font-semibold">libsupport@librepair.com</div>
+                  </div>
+                </a>
+              </div>
+            </div>
+            <div className="glass rounded-xl p-5" style={{ border: "1px solid var(--color-border)" }}>
+              <div className="text-sm font-semibold mb-1" style={{ color: "var(--color-red)" }}>Business Hours</div>
+              <div className="text-sm space-y-1" style={{ color: "var(--color-silver)" }}>
+                <div className="flex justify-between"><span>Mon – Fri</span><span className="font-medium" style={{ color: "var(--color-white)" }}>7:00 AM – 7:00 PM</span></div>
+                <div className="flex justify-between"><span>Saturday</span><span className="font-medium" style={{ color: "var(--color-white)" }}>8:00 AM – 5:00 PM</span></div>
+                <div className="flex justify-between"><span>Sunday</span><span className="font-medium" style={{ color: "var(--color-muted)" }}>Emergency only</span></div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Contact form */}
+          <motion.div {...fadeUp}>
+            {status === "success" ? (
+              <div className="glass rounded-2xl p-8 text-center h-full flex flex-col items-center justify-center gap-4">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(34,197,94,0.1)", border: "2px solid #22c55e" }}>
+                  <CheckCircle size={32} color="#22c55e" />
+                </div>
+                <h3 className="text-2xl font-bold" style={{ fontFamily: "Rajdhani" }}>Message Sent!</h3>
+                <p style={{ color: "var(--color-silver)" }}>We'll get back to you within 24 hours.</p>
+                <button onClick={() => setStatus("idle")} className="mt-2 text-sm underline" style={{ color: "var(--color-red)" }}>Send another message</button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="glass rounded-2xl p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Full Name *</label>
+                    <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="John Smith"
+                      className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-all" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Phone</label>
+                    <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+1 (555) 000-0000"
+                      className="w-full px-4 py-3 rounded-lg text-sm outline-none" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Email *</label>
+                  <input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="you@example.com"
+                    className="w-full px-4 py-3 rounded-lg text-sm outline-none" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Subject</label>
+                  <input value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="How can we help?"
+                    className="w-full px-4 py-3 rounded-lg text-sm outline-none" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Message *</label>
+                  <textarea required rows={4} value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} placeholder="Tell us about your vehicle or issue..."
+                    className="w-full px-4 py-3 rounded-lg text-sm outline-none resize-none" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }} />
+                </div>
+                {status === "error" && <p className="text-xs" style={{ color: "#e02020" }}>{errMsg}</p>}
+                <button type="submit" disabled={status === "sending"} className="w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold text-white disabled:opacity-60 transition-all" style={{ backgroundColor: "var(--color-red)" }}>
+                  {status === "sending" ? <><Loader2 size={16} className="animate-spin" /> Sending...</> : <><Send size={16} /> Send Message</>}
+                </button>
+              </form>
+            )}
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function LandingPage() {
   return (
@@ -480,25 +612,7 @@ export default function LandingPage() {
       </section>
 
       {/* Contact */}
-      <section id="contact" className="py-24 px-6 md:px-10" style={{ backgroundColor: "var(--color-surface)" }}>
-        <div className="max-w-[1280px] mx-auto text-center">
-          <motion.div {...fadeUp}>
-            <div className="text-sm font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--color-red)" }}>Contact</div>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4" style={{ fontFamily: "Rajdhani" }}>GET IN TOUCH</h2>
-            <p className="mb-10 max-w-xl mx-auto" style={{ color: "var(--color-silver)" }}>Have questions? Our support team is available 24/7 to help.</p>
-            <div className="flex flex-wrap justify-center gap-6">
-              <a href="tel:+1800LIBREPAIR" className="flex items-center gap-3 glass px-6 py-4 rounded-xl hover:border-red-500 transition-all">
-                <Phone size={20} style={{ color: "var(--color-red)" }} />
-                <span className="font-medium">1-800-LIBREPAIR</span>
-              </a>
-              <a href="mailto:support@librepair.com" className="flex items-center gap-3 glass px-6 py-4 rounded-xl hover:border-red-500 transition-all">
-                <Mail size={20} style={{ color: "var(--color-red)" }} />
-                <span className="font-medium">support@librepair.com</span>
-              </a>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+      <ContactSection />
 
       {/* Footer */}
       <footer className="py-10 px-6 md:px-10" style={{ borderTop: "1px solid var(--color-border)" }}>

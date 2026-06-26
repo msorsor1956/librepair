@@ -24,6 +24,7 @@ import PaymentsPage from "./pages/payments";
 import MechanicPage from "./pages/mechanic";
 import CarsForSalePage from "./pages/cars-for-sale";
 import VanForRentPage from "./pages/van-for-rent";
+import ZohoBookingsPage from "./pages/zoho-bookings";
 
 function App() {
   return (
@@ -59,6 +60,8 @@ function App() {
         <Route path="/mechanic" component={MechanicPage} />
         <Route path="/cars-for-sale" component={CarsForSalePage} />
         <Route path="/van-for-rent" component={VanForRentPage} />
+        <Route path="/schedule" component={ZohoBookingsPage} />
+        <Route path="/appointments/new" component={ZohoBookingsPage} />
       </Switch>
       {import.meta.env.DEV && <AgentFeedback />}
     </Provider>

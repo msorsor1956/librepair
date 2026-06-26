@@ -222,13 +222,31 @@ export default function BookPage() {
           </motion.div>
         )}
 
-        {/* Step 2: Schedule */}
+        {/* Step 2: Schedule — Zoho Calendar + date/time picker */}
         {step === 2 && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
             <h2 className="text-2xl font-bold mb-1" style={{ fontFamily: "Rajdhani" }}>Schedule Date</h2>
-            <p className="text-sm mb-6" style={{ color: "var(--color-muted)" }}>Pick your preferred date and time</p>
+            <p className="text-sm mb-4" style={{ color: "var(--color-muted)" }}>Check our availability then pick your preferred date and time</p>
+
+            {/* Zoho Calendar embed */}
+            <div className="rounded-xl overflow-hidden mb-5" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface2)" }}>
+              <div className="px-4 py-2.5 flex items-center gap-2" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                <Calendar size={14} style={{ color: "var(--color-red)" }} />
+                <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--color-muted)" }}>Availability Calendar</span>
+              </div>
+              <iframe
+                src="https://calendar.zoho.com/zc/ui/embed/#calendar=zz080112200835c38667d1b019ea91e53d89f1b20670ad3440118779b60ee0dd6b61970be5&title=CUSTOMER%20SUPPORT&type=1&language=en&timezone=America%2FIndiana%2FIndianapolis&showTitle=1&showTimezone=1&view=day&showDetail=0&theme=1&eventColorType=light&calendarColor=%23bfbf4d&showLogo=1"
+                title="LIBrepair Availability"
+                width="100%"
+                height="420"
+                frameBorder="0"
+                scrolling="no"
+                style={{ display: "block" }}
+              />
+            </div>
+
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Date & Time *</label>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Your Preferred Date & Time *</label>
               <input type="datetime-local" value={form.scheduledAt} min={new Date().toISOString().slice(0, 16)} onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
                 className="w-full px-4 py-3 rounded-lg text-sm outline-none" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }} />
             </div>
