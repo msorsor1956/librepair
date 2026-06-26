@@ -6,9 +6,6 @@ import { authMiddleware, requireAuth } from "../middleware/auth";
 import type { HonoVariables } from "../types";
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { getApps, initializeApp, cert } from "firebase-admin/app";
-import type { App } from "firebase-admin/app";
-import { getStorage } from "firebase-admin/storage";
 
 const r2Client = new S3Client({
   region: "auto",
@@ -20,18 +17,6 @@ const r2Client = new S3Client({
 });
 const R2_BUCKET = process.env.S3_BUCKET ?? "";
 
-function getAdminApp(): App {
-  const apps = getApps();
-  if (apps.length > 0) return apps[0]!;
-  return initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID ?? "librepair-77afa",
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET ?? "librepair-77afa.firebasestorage.app",
-  });
-}
 
 async function toPresignedUrl(url: string): Promise<string> {
   if (!url || !R2_BUCKET) return url;
@@ -245,14 +230,16 @@ export const rentalsRouter = new Hono<{ Variables: HonoVariables }>()
       const key = `rental/photos/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const buf = Buffer.from(await file.arrayBuffer());
 
-      // Upload to Firebase Storage (public permanent URLs)
-      const adminApp = getAdminApp();
-      const bucket = getStorage(adminApp).bucket();
-      const fileRef = bucket.file(key);
-      await fileRef.save(buf, { contentType: file.type, resumable: false });
-      await fileRef.makePublic();
-      const publicUrl = fileRef.publicUrl();
-      return c.json({ url: publicUrl, key }, 200);
+      // Upload to R2 (Cloudflare)
+      await r2Client.send(new PutObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: key,
+        Body: buf,
+        ContentType: file.type,
+      }));
+      // Return a signed URL (7200s) so admin can see it immediately
+      const signedUrl = await getSignedUrl(r2Client, new GetObjectCommand({ Bucket: R2_BUCKET, Key: key }), { expiresIn: 7200 });
+      return c.json({ url: signedUrl, key }, 200);
     } catch (err: any) {
       console.error("[rental upload-photo] ERROR:", err?.message ?? err);
       return c.json({ message: err?.message ?? "Upload failed — server error" }, 500);

@@ -7,10 +7,7 @@ import type { HonoVariables } from "../types";
 import { auth } from "../auth";
 import Stripe from "stripe";
 import { execSync } from "child_process";
-import { getApps, initializeApp, cert } from "firebase-admin/app";
-import type { App } from "firebase-admin/app";
-import { getStorage } from "firebase-admin/storage";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const r2Client = new S3Client({
@@ -49,18 +46,6 @@ async function toPresignedUrl(url: string): Promise<string> {
   }
 }
 
-function getAdminApp(): App {
-  const apps = getApps();
-  if (apps.length > 0) return apps[0]!;
-  return initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID ?? "librepair-77afa",
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET ?? "librepair-77afa.firebasestorage.app",
-  });
-}
 
 const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY ?? "sk_test_placeholder", { apiVersion: "2025-05-28.basil" });
 
@@ -530,15 +515,16 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Upload to Firebase Storage
-    const adminApp = getAdminApp();
-    const bucket = getStorage(adminApp).bucket();
-    const fileRef = bucket.file(key);
-    await fileRef.save(buffer, { contentType: file.type, resumable: false });
-    await fileRef.makePublic();
-    const publicUrl = fileRef.publicUrl();
+    // Upload to R2 (Cloudflare)
+    await r2Client.send(new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: file.type,
+    }));
+    const signedUrl = await getSignedUrl(r2Client, new GetObjectCommand({ Bucket: R2_BUCKET, Key: key }), { expiresIn: 7200 });
 
-    return c.json({ url: publicUrl, key, mediaType: isVideo ? "video" : "image" }, 200);
+    return c.json({ url: signedUrl, key, mediaType: isVideo ? "video" : "image" }, 200);
   })
 
   .get("/inventory", requireAuth, requireSuperAdmin, async (c) => {
