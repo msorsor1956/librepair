@@ -1,0 +1,26 @@
+FROM oven/bun:1 AS builder
+WORKDIR /app
+
+# Copy everything
+COPY . .
+
+# Build admin
+ARG VITE_API_URL=https://librepair-backend-production.up.railway.app
+ENV VITE_API_URL=$VITE_API_URL
+
+RUN cd packages/admin && bun install
+RUN cd packages/admin && bun run build
+
+# Serve with a lightweight static server
+FROM oven/bun:1
+WORKDIR /app
+
+COPY --from=builder /app/packages/admin/dist ./dist
+
+# Install serve
+RUN bun add -g serve
+
+ENV PORT=3000
+EXPOSE 3000
+
+CMD ["bunx", "serve", "dist", "-l", "3000", "-s"]
