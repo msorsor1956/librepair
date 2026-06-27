@@ -1,4 +1,4 @@
-const API = import.meta.env.VITE_API_URL ?? "https://librepair-backend.onrender.com";
+const API = import.meta.env.VITE_API_URL ?? "https://librepair-backend-production.up.railway.app";
 
 let _token: string | null = localStorage.getItem("admin_token");
 
