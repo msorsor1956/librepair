@@ -206,7 +206,7 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
       type: "system",
     });
 
-    const frontendUrl = process.env.VITE_FRONTEND_URL ?? "https://librepair.wasmer.app";
+    const frontendUrl = process.env.VITE_FRONTEND_URL ?? "https://www.librepair.com";
     const sendEmail = body.sendEmail !== false; // default true
     const sendSms = body.sendSms === true && !!body.phone;
     let emailSent = false;
@@ -261,7 +261,7 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     const [user] = await db.select().from(schema.users).where(eq(schema.users.id, id));
     if (!user) return c.json({ message: "User not found" }, 404);
 
-    const frontendUrl = process.env.VITE_FRONTEND_URL ?? "https://librepair.wasmer.app";
+    const frontendUrl = process.env.VITE_FRONTEND_URL ?? "https://www.librepair.com";
     let emailSent = false;
     let smsSent = false;
 

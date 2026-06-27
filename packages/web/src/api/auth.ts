@@ -5,7 +5,19 @@ import { expo } from "@better-auth/expo";
 import { db } from "./database";
 import * as schema from "./database/schema";
 import { eq } from "drizzle-orm";
-import { execSync } from "child_process";
+import nodemailer from "nodemailer";
+
+function getMailTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST ?? "smtp.zoho.com",
+    port: Number(process.env.SMTP_PORT ?? 465),
+    secure: (process.env.SMTP_PORT ?? "465") === "465",
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
 
 export const auth = betterAuth({
   basePath: "/api/auth",
@@ -15,43 +27,51 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: false,
     sendResetPassword: async ({ user, url }) => {
-      const frontendUrl = process.env.VITE_FRONTEND_URL ?? "https://librepair.wasmer.app";
-      // The reset URL from better-auth points to the backend — we rewrite to frontend
-      // Frontend should handle /reset-password?token=... and call the API
-      const tokenMatch = url.match(/reset-password\/([^?]+)/);
-      const token = tokenMatch?.[1] ?? "";
-      const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+      const frontendUrl = process.env.VITE_FRONTEND_URL ?? "https://www.librepair.com";
+      // Rewrite the backend reset URL → frontend /reset-password?token=...
+      const tokenMatch = url.match(/[?&]token=([^&]+)/) ?? url.match(/reset-password\/([^?&/]+)/);
+      const token = tokenMatch?.[1] ?? url.split("/").pop()?.split("?")[0] ?? "";
+      const resetLink = `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
-      const htmlBody = `
-<!DOCTYPE html>
+      const htmlBody = `<!DOCTYPE html>
 <html>
-<body style="font-family: Arial, sans-serif; background: #0a0a0a; color: #e5e5e5; padding: 40px;">
+<body style="font-family: Arial, sans-serif; background: #0a0a0a; color: #e5e5e5; padding: 40px; margin: 0;">
   <div style="max-width: 520px; margin: 0 auto; background: #111; border-radius: 12px; padding: 36px; border: 1px solid rgba(255,255,255,0.08);">
     <div style="text-align: center; margin-bottom: 28px;">
       <span style="font-size: 28px; font-weight: 800; color: #e02020; letter-spacing: 2px;">LIB</span><span style="font-size: 28px; font-weight: 800; color: #fff;">repair</span>
     </div>
     <h2 style="color: #fff; font-size: 20px; margin-bottom: 8px;">Set Your Password</h2>
-    <p style="color: #888; font-size: 14px; line-height: 1.6; margin-bottom: 28px;">
-      Your account has been created on LIBrepair. Click the button below to set your secure password and access your account.
+    <p style="color: #aaa; font-size: 14px; line-height: 1.6; margin-bottom: 28px;">
+      Hi ${user.name || user.email},<br/><br/>
+      Your LIBrepair account has been created. Click the button below to set your password and access your account.
     </p>
-    <a href="${resetLink}" style="display: inline-block; background: #e02020; color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; margin-bottom: 24px;">
-      Set My Password →
-    </a>
-    <p style="color: #555; font-size: 12px; margin-top: 24px; line-height: 1.5;">
-      This link expires in 1 hour. If you didn't expect this email, you can safely ignore it.<br/>
-      LIBrepair — Professional Auto Repair Services
+    <div style="text-align: center; margin-bottom: 28px;">
+      <a href="${resetLink}" style="display: inline-block; background: #e02020; color: #fff; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px;">
+        Set My Password →
+      </a>
+    </div>
+    <p style="color: #555; font-size: 12px; margin-top: 24px; line-height: 1.6;">
+      This link expires in <strong style="color:#888;">1 hour</strong>. If you didn't expect this email, you can safely ignore it.<br/><br/>
+      If the button doesn't work, copy and paste this link:<br/>
+      <a href="${resetLink}" style="color: #e02020; word-break: break-all;">${resetLink}</a>
     </p>
+    <hr style="border: none; border-top: 1px solid #222; margin: 24px 0;" />
+    <p style="color: #444; font-size: 11px; text-align: center;">LIBrepair — Professional Auto Repair Services</p>
   </div>
 </body>
 </html>`;
 
       try {
-        execSync(
-          `send-email --to ${JSON.stringify(user.email)} --subject "Set Your LIBrepair Password" --html -`,
-          { input: htmlBody, stdio: ["pipe", "ignore", "ignore"] }
-        );
+        const transporter = getMailTransporter();
+        await transporter.sendMail({
+          from: `"LIBrepair" <${process.env.SMTP_USER ?? "libsupport@librepair.com"}>`,
+          to: user.email,
+          subject: "Set Your LIBrepair Password",
+          html: htmlBody,
+        });
+        console.log(`[auth] Password reset email sent to ${user.email}`);
       } catch (e) {
-        console.error("Failed to send password reset email:", e);
+        console.error("[auth] Failed to send password reset email:", e);
       }
     },
   },
