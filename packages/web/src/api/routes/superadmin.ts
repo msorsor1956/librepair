@@ -9,6 +9,77 @@ import Stripe from "stripe";
 import { execSync } from "child_process";
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import nodemailer from "nodemailer";
+
+function getMailTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST ?? "smtp.zoho.com",
+    port: Number(process.env.SMTP_PORT ?? 465),
+    secure: (process.env.SMTP_PORT ?? "465") === "465",
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
+
+async function sendWelcomeWithPassword({
+  name, email, tempPassword, role, frontendUrl,
+}: { name: string; email: string; tempPassword: string; role: string; frontendUrl: string }) {
+  const loginUrl = `${frontendUrl}/login`;
+  const html = `<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; background: #0a0a0a; color: #e5e5e5; padding: 40px; margin: 0;">
+  <div style="max-width: 540px; margin: 0 auto; background: #111; border-radius: 12px; padding: 36px; border: 1px solid rgba(255,255,255,0.08);">
+    <div style="text-align: center; margin-bottom: 28px;">
+      <span style="font-size: 28px; font-weight: 800; color: #e02020; letter-spacing: 2px;">LIB</span><span style="font-size: 28px; font-weight: 800; color: #fff;">repair</span>
+    </div>
+    <h2 style="color: #fff; font-size: 20px; margin-bottom: 8px;">Welcome to LIBrepair!</h2>
+    <p style="color: #aaa; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+      Hi ${name},<br/><br/>
+      Your LIBrepair account has been created with the role of <strong style="color:#e5e5e5;">${role}</strong>. Below are your temporary login credentials. <strong style="color:#fde68a;">Please log in and change your password immediately.</strong>
+    </p>
+
+    <!-- Credentials Box -->
+    <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 20px; margin-bottom: 24px;">
+      <div style="margin-bottom: 14px;">
+        <p style="font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 4px;">Email</p>
+        <p style="font-size: 15px; color: #e5e5e5; margin: 0; font-weight: 500;">${email}</p>
+      </div>
+      <div>
+        <p style="font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 4px;">Temporary Password</p>
+        <p style="font-size: 17px; color: #fff; margin: 0; font-weight: 700; letter-spacing: 0.05em; font-family: 'Courier New', monospace; background: rgba(224,32,32,0.08); padding: 8px 14px; border-radius: 6px; border: 1px solid rgba(224,32,32,0.2); display: inline-block;">${tempPassword}</p>
+      </div>
+    </div>
+
+    <!-- CTA Button -->
+    <div style="text-align: center; margin-bottom: 24px;">
+      <a href="${loginUrl}" style="display: inline-block; background: #e02020; color: #fff; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px;">
+        Log In & Change Password →
+      </a>
+    </div>
+
+    <!-- Warning -->
+    <div style="background: rgba(234,179,8,0.06); border: 1px solid rgba(234,179,8,0.2); border-radius: 8px; padding: 12px 16px; margin-bottom: 24px;">
+      <p style="color: #fde68a; font-size: 13px; margin: 0; line-height: 1.5;">
+        ⚠️ For your security, go to <strong>Account Settings → Change Password</strong> after your first login. This temporary password should not be kept.
+      </p>
+    </div>
+
+    <hr style="border: none; border-top: 1px solid #222; margin: 24px 0;" />
+    <p style="color: #444; font-size: 11px; text-align: center;">LIBrepair — Professional Auto Repair Services<br/>If you didn't expect this email, please ignore it.</p>
+  </div>
+</body>
+</html>`;
+
+  const transporter = getMailTransporter();
+  await transporter.sendMail({
+    from: `"LIBrepair" <${process.env.SMTP_USER ?? "libsupport@librepair.com"}>`,
+    to: email,
+    subject: "Your LIBrepair Account — Temporary Login Credentials",
+    html,
+  });
+}
 
 const r2Client = new S3Client({
   region: "auto",
@@ -212,18 +283,20 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     let emailSent = false;
     let smsSent = false;
 
-    // --- Send password-set email via better-auth reset flow ---
+    // --- Send welcome email with temp password ---
     if (sendEmail) {
       try {
-        await auth.api.requestPasswordReset({
-          body: {
-            email: body.email,
-            redirectTo: `${frontendUrl}/reset-password`,
-          },
+        await sendWelcomeWithPassword({
+          name: body.name,
+          email: body.email,
+          tempPassword,
+          role,
+          frontendUrl,
         });
         emailSent = true;
+        console.log(`[superadmin] Welcome email with temp password sent to ${body.email}`);
       } catch (e) {
-        console.error("Failed to send password reset email:", e);
+        console.error("Failed to send welcome email:", e);
       }
     }
 
