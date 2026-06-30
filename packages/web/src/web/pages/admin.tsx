@@ -1131,7 +1131,7 @@ export default function AdminPage() {
   const { data: inventoryData, refetch: refetchInventory } = useQuery({
     queryKey: ["admin-inventory"],
     queryFn: async () => {
-      const r = await fetch(`${import.meta.env.VITE_API_URL}/api/inventory`);
+      const r = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/api/inventory`);
       return r.json() as Promise<{ listings: any[] }>;
     },
   });

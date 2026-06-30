@@ -57,7 +57,7 @@ export default function CarsForSalePage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/inventory`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/api/inventory`);
         const data = await res.json();
         setListings(data.listings ?? []);
       } catch (e) {
