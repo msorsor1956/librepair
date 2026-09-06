@@ -1,0 +1,20 @@
+{
+  "name": "LIBrepair Automotive Service",
+  "short_name": "LIBrepair",
+  "description": "Request automotive service, manage vehicles, and follow appointments.",
+  "id": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#080a0c",
+  "theme_color": "#080a0c",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Sign in", "url": "/welcome", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Book service", "url": "/schedule", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
