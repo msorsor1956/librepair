@@ -42,7 +42,7 @@ export default function SignInGooglePage() {
     <div className="min-h-screen flex items-center justify-center px-4 bg-grid" style={{ backgroundColor: "var(--color-bg)" }}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center">
         <div className="glass rounded-2xl p-8">
-          <Link to="/">
+          <Link to="/welcome">
             <button className="flex items-center gap-2 text-sm mb-6 hover:text-white transition-colors" style={{ color: "var(--color-muted)" }}>
               <ArrowLeft size={14} /> Back
             </button>
@@ -54,10 +54,11 @@ export default function SignInGooglePage() {
                 <span className="text-2xl">!</span>
               </div>
               <h2 className="text-xl font-bold mb-2" style={{ fontFamily: "Rajdhani" }}>Google Sign-In Failed</h2>
-              <p className="text-sm mb-6" style={{ color: "var(--color-muted)" }}>{error}</p>
+              <p role="alert" aria-live="assertive" className="text-sm mb-6" style={{ color: "var(--color-muted)" }}>{error}</p>
               <button
                 onClick={handleGoogle}
-                className="w-full py-3.5 rounded-xl font-semibold text-white red-glow"
+                disabled={loading}
+                className="w-full py-3.5 rounded-xl font-semibold text-white red-glow disabled:opacity-60"
                 style={{ backgroundColor: "var(--color-red)" }}
               >
                 Try Again

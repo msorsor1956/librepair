@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { authClient, captureToken } from "../lib/auth";
-import { Eye, EyeOff, ArrowLeft, Phone } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, Phone, AlertCircle, Loader2 } from "lucide-react";
 
 function GoogleIcon() {
   return (
@@ -52,20 +52,22 @@ export default function SignInPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    await authClient.signIn.email(
-      { email, password },
-      {
-        onSuccess: (ctx) => {
-          captureToken(ctx as any);
-          navigate("/customer/dashboard");
-        },
-        onError: (ctx) => {
-          setError(ctx.error?.message ?? "Invalid credentials. Please try again.");
-          setLoading(false);
-        },
-      }
-    );
-    setLoading(false);
+    try {
+      await authClient.signIn.email(
+        { email: email.trim(), password },
+        {
+          onSuccess: (ctx) => {
+            captureToken(ctx as any);
+            navigate("/customer/dashboard");
+          },
+          onError: (ctx) => setError(ctx.error?.message ?? "Invalid email or password."),
+        }
+      );
+    } catch {
+      setError("We couldn't reach the sign-in service. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -74,7 +76,7 @@ export default function SignInPage() {
       <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-md">
         <div className="glass rounded-2xl p-8">
 
-          <Link to="/">
+          <Link to="/welcome">
             <button className="flex items-center gap-2 text-sm mb-6 hover:text-white transition-colors" style={{ color: "var(--color-muted)" }}>
               <ArrowLeft size={14} /> Back
             </button>
@@ -116,16 +118,20 @@ export default function SignInPage() {
           </div>
 
           {error && (
-            <div className="mb-4 px-4 py-3 rounded-lg text-sm" style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "#e02020", border: "1px solid rgba(224,32,32,0.2)" }}>
-              {error}
+            <div role="alert" aria-live="assertive" className="mb-4 px-4 py-3 rounded-lg text-sm flex items-start gap-2" style={{ backgroundColor: "rgba(239,62,58,0.1)", color: "#ff7773", border: "1px solid rgba(239,62,58,0.28)" }}>
+              <AlertCircle size={18} className="shrink-0 mt-0.5" aria-hidden="true" />
+              <span>{error}</span>
             </div>
           )}
 
           <form onSubmit={handleSignIn} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Email Address</label>
+              <label htmlFor="signin-email" className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Email Address</label>
               <input
+                id="signin-email"
                 type="email"
+                name="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -138,14 +144,17 @@ export default function SignInPage() {
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-sm font-medium" style={{ color: "var(--color-silver)" }}>Password</label>
+                <label htmlFor="signin-password" className="text-sm font-medium" style={{ color: "var(--color-silver)" }}>Password</label>
                 <Link to="/forgot-password">
                   <span className="text-xs hover:underline" style={{ color: "var(--color-red)" }}>Forgot password?</span>
                 </Link>
               </div>
               <div className="relative">
                 <input
+                  id="signin-password"
                   type={showPw ? "text" : "password"}
+                  name="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -155,7 +164,7 @@ export default function SignInPage() {
                   onFocus={(e) => (e.target.style.borderColor = "var(--color-red)")}
                   onBlur={(e) => (e.target.style.borderColor = "var(--color-border)")}
                 />
-                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-muted)" }}>
+                <button type="button" onClick={() => setShowPw(!showPw)} aria-label={showPw ? "Hide password" : "Show password"} className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 grid place-items-center" style={{ color: "var(--color-muted)" }}>
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
@@ -166,7 +175,7 @@ export default function SignInPage() {
               className="w-full py-3.5 rounded-xl font-semibold text-white transition-all disabled:opacity-60 red-glow"
               style={{ backgroundColor: "var(--color-red)" }}
             >
-              {loading ? "Signing in..." : "Sign In with Email"}
+              {loading ? <span className="flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" aria-hidden="true" /> Signing in...</span> : "Sign In with Email"}
             </button>
           </form>
 
