@@ -2,6 +2,7 @@ import { Route, Switch } from "wouter";
 import { Provider } from "./components/provider";
 import { AgentFeedback } from "@runablehq/website-runtime";
 import { AnnouncementBanner } from "./components/AnnouncementBanner";
+import { ProtectedRoute } from "./components/protected-route";
 
 import IndexPage from "./pages/index";
 import WelcomePage from "./pages/welcome";
@@ -25,6 +26,7 @@ import MechanicPage from "./pages/mechanic";
 import CarsForSalePage from "./pages/cars-for-sale";
 import VanForRentPage from "./pages/van-for-rent";
 import ZohoBookingsPage from "./pages/zoho-bookings";
+import { PrivacyPage, TermsPage, SupportPage, NotFoundPage } from "./pages/public-info";
 
 function App() {
   return (
@@ -54,7 +56,7 @@ function App() {
         <Route path="/dashboard/appointments/:id" component={AppointmentsPage} />
         <Route path="/dashboard/payments" component={PaymentsPage} />
         <Route path="/dashboard/notifications" component={NotificationsPage} />
-        <Route path="/book" component={BookPage} />
+        <Route path="/book">{() => <ProtectedRoute><BookPage /></ProtectedRoute>}</Route>
         <Route path="/profile" component={ProfilePage} />
         <Route path="/admin" component={AdminPage} />
         <Route path="/mechanic" component={MechanicPage} />
@@ -62,6 +64,10 @@ function App() {
         <Route path="/van-for-rent" component={VanForRentPage} />
         <Route path="/schedule" component={ZohoBookingsPage} />
         <Route path="/appointments/new" component={ZohoBookingsPage} />
+        <Route path="/privacy" component={PrivacyPage} />
+        <Route path="/terms" component={TermsPage} />
+        <Route path="/support" component={SupportPage} />
+        <Route component={NotFoundPage} />
       </Switch>
       {import.meta.env.DEV && <AgentFeedback />}
     </Provider>

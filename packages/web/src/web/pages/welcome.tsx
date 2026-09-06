@@ -122,8 +122,8 @@ export default function WelcomePage() {
 
         <p className="text-xs text-center mt-6" style={{ color: "var(--color-muted)" }}>
           By continuing, you agree to our{" "}
-          <span className="underline cursor-pointer" style={{ color: "var(--color-silver)" }}>Terms</span> and{" "}
-          <span className="underline cursor-pointer" style={{ color: "var(--color-silver)" }}>Privacy Policy</span>
+          <Link to="/terms"><span className="underline cursor-pointer" style={{ color: "var(--color-silver)" }}>Terms</span></Link> and{" "}
+          <Link to="/privacy"><span className="underline cursor-pointer" style={{ color: "var(--color-silver)" }}>Privacy Policy</span></Link>
         </p>
       </motion.div>
     </div>
