@@ -13,45 +13,56 @@ services:
       - key: PORT
         value: 10000
       - key: DATABASE_URL
-        value: libsql://68c85619-e47d-4549-8bb4-05d3986a9cdd-runable.aws-us-east-2.turso.io
+        sync: false
       - key: DATABASE_AUTH_TOKEN
-        value: eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3ODAwNjI4MDEsInAiOnsicnciOnsibnMiOlsiMDE5ZTc0MDItY2IwMS03NWIyLTk5ZTktNGM4MDNjY2NiNjlhIl19fSwicmlkIjoiOTY2MGRjZmMtNzFmOS00MGJjLWI5YTAtOTEwMDZmOTlmM2ExIn0.DiX2gC31Gq8nhSCRk_5LXY7uQLoe5urk8sphHhwVo-rAkn5lVfC5g66g8PjWWNANPp5TADJgeJ-YUX87KVcyBw
-      - key: BETTER_AUTH_SECRET
-        value: 5AGXS6FYX7CP6LQWsLD/jyc6Pd1+ohdTFSGXav9Hweo=
-      - key: BETTER_AUTH_URL
-        value: https://librepair-backend.onrender.com
-      - key: WEBSITE_URL
-        value: https://librepair-backend.onrender.com
-      - key: S3_ENDPOINT
-        value: https://4e93db960a1c13ad600b2eb6eb1147c2.r2.cloudflarestorage.com
-      - key: S3_BUCKET
-        value: 68c85619-e47d-4549-8bb4-05d3986a9cdd
-      - key: S3_ACCESS_KEY_ID
-        value: f7e82b1212914fa78908fc568fe6d4f2
-      - key: S3_SECRET_ACCESS_KEY
-        value: 8a5628f1e1fd8b83fcfa28902d2b004c3ed1f6cb48b6e4dbee9ac3e1550981cb
+        sync: false
       - key: FIREBASE_PROJECT_ID
-        value: librepair-77afa
-      - key: FIREBASE_API_KEY
-        value: AIzaSyCNMz4Gh65dgyoQOFIFz_u0r-b59Hifq_I
-      - key: FIREBASE_AUTH_DOMAIN
-        value: librepair-77afa.firebaseapp.com
-      - key: FIREBASE_APP_ID
-        value: 1:86955698956:web:2211ccf5087b05810c3729
-      - key: VITE_API_URL
-        value: https://librepair-backend.onrender.com
-      - key: VITE_FRONTEND_URL
-        value: https://librepair.wasmer.app
-      - key: VITE_FIREBASE_API_KEY
-        value: AIzaSyCNMz4Gh65dgyoQOFIFz_u0r-b59Hifq_I
-      - key: VITE_FIREBASE_AUTH_DOMAIN
-        value: librepair-77afa.firebaseapp.com
-      - key: VITE_FIREBASE_PROJECT_ID
-        value: librepair-77afa
-      - key: VITE_FIREBASE_APP_ID
-        value: 1:86955698956:web:2211ccf5087b05810c3729
+        sync: false
       - key: FIREBASE_CLIENT_EMAIL
-        value: firebase-adminsdk-fbsvc@librepair-77afa.iam.gserviceaccount.com
+        sync: false
       - key: FIREBASE_PRIVATE_KEY
-        value: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDOk1LSkDDtLu96\nOwEOkeRW4WJForbmV7B3E6A2ynO9ZEJe+hbmc+WaY+rf7RspCw8Zh2aYXgcoeP6L\nd694tFPeFBjyitC123PixiwcGoAhXjvGzf2BqlGpJBSnULN44j2FrzMPMpUrCY+H\nCfLPdiuJQe5/sYO2dbu240NODt5LcwAT6X3rpSTRg59UQYI0XUJ4I6nmM1SUpFxP\nSS127hHCMZMtghiQHCeXAMTPnliBajT7+yTKRepThBaxFjX8iIJd+gTe5pdnK8Ld\npV5oWXQxM1LqWG0ryeMmeltmcpgiAYNIQvpOmM9k/PBpJWUJW6XNazJUHratEGKY\n2zcjFrxdAgMBAAECggEAMb+rF4igL86435/sHj0mV4IJ76lDEPAXUGYKlIdnHjpR\n/ZuO/kr1BZyAiRMKEnVWWpiQLaufX7Db5Gybdp8+/2GprGef4dwK6Zc+MjpzlxWh\nobwkDCEfb3OAAddekYMyu8o4qrVM1UOFLElKD4pu66xUKq5ugPeTkHTk1ZyhDlwh\nb+jwfhNpjZDoC1QLfzLRPwKdfQkBmXrhvA++PNYDJf1J/D2W+FuOOpbr7elhcYgt\ncLkiHGd4dyN21iTzDyosrkeLeZH0LDAGE2IL4/9TEeCLaUxXho3khSclkQqqJkh6\n9zT/EHcZYWhTcO/3o8tVb3rcv6eslvHctb8i2N/aoQKBgQD8UoZ/+PoNq9orORKl\nRosCuBCYmCga+AnVln0CrRr6Oeg9zud6T4ELuaq05HXL0RbGT1aaDsN702eiRK//\nxq9i+BpGi/s+1kF2sc0i2M0ccRJwgfVLNv9COlh+CEDHKJae7/qTo+ClgEQpyLj5\n4OAxmK1JxJRISqWeorxPmcfrWQKBgQDRlhsMwatW+R1JaVAyqfOnrK15R9b8hPaa\nhwK578JSGkqp9uJSw/JhClxEGdnHkZheIbFsXCSNcDNTStf1jj5F4W8l971mH6oD\nc1L7JoU0c9ok9f3fx8Y3Lv8X97qta8IaUFXsklJm56FCZabh3B52BpMuaWq7vmSs\nH9dMv7bspQKBgAKgMTofsyp1QV31yBXkOAodND8CRliRgDiyyjY+6urzs1EBWDNT\npHokwnwDbJ5kXKJPrQ0JXktplciAgnxc6vJStqNJTaIHxMKhcwsLyoajPpfhIlZY\nCiv8Q3N8ToBEEd0xjh//MpVGUm9E4XfoOS0K87Ky0wA1lqeh9ee2J/hxAoGBAM6/\nHTXrQmMMYRiO277uqd3I2GNgO7JkU4PCFS1oVy94ohih40az5sBVYQkI2y0j8cNB\nx2zWRHSFrwvGM90WkVWL+YHhriM0rxiyRbRcnmBMvG9jfimnP2Amaxuwk6UJPLOK\ndghlmwXKDuiZsBLzedUBzWSmNtS3D0ZALrmWERPFAoGADRrh21MOuX8sktht2INd\nO8q+b0tJJvS4K+ma9KDGaaCWgPuB7Vw2JDbLEithiDjoFpAeMDfyiyOuI5rq30TL\nOH3OSHvCcmVZwjbqIej7sn50nXj1okqH0PVwsJs7oMAu/eZcmaYKNAhv/T1V6494\nmPOAXTp34piI4sXc4OrCWaQ=\n-----END PRIVATE KEY-----\n"
-      # GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET: set manually in Render dashboard
+        sync: false
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
+        sync: false
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_SERVER_URL
+        sync: false
+      - key: VITE_FRONTEND_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: ADMIN_URL
+        sync: false
+      - key: WEBSITE_URL
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: 465
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
