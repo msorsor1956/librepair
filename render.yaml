@@ -6,7 +6,7 @@ services:
     plan: free
     branch: main
     buildCommand: "npm install -g bun && cd packages/web && bun install && bun run build"
-    startCommand: "cd packages/web && bun src/server.ts"
+    startCommand: "cd packages/web && bun run db:migrate:deploy && bun src/server.ts"
     envVars:
       - key: NODE_ENV
         value: production
