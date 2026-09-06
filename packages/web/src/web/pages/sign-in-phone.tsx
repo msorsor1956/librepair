@@ -114,7 +114,7 @@ export default function SignInPhonePage() {
                 <ArrowLeft size={14} /> Back
               </button>
             ) : (
-              <Link to="/">
+              <Link to="/welcome">
                 <span className="flex items-center gap-2 text-sm hover:text-white transition-colors cursor-pointer" style={{ color: "var(--color-muted)" }}>
                   <ArrowLeft size={14} /> Back
                 </span>
@@ -134,13 +134,16 @@ export default function SignInPhonePage() {
                 <h1 className="text-3xl font-bold text-center mb-1" style={{ fontFamily: "Rajdhani" }}>Sign In with Phone</h1>
                 <p className="text-sm text-center mb-8" style={{ color: "var(--color-muted)" }}>We'll send a verification code via SMS</p>
 
-                {error && <div className="mb-4 px-4 py-3 rounded-lg text-sm" style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "#e02020", border: "1px solid rgba(224,32,32,0.2)" }}>{error}</div>}
+                {error && <div role="alert" aria-live="assertive" className="mb-4 px-4 py-3 rounded-lg text-sm" style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "#ff7773", border: "1px solid rgba(224,32,32,0.2)" }}>{error}</div>}
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Mobile Phone Number</label>
+                    <label htmlFor="signin-phone" className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-silver)" }}>Mobile Phone Number</label>
                     <input
+                      id="signin-phone"
                       type="tel"
+                      name="phone"
+                      autoComplete="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="+1 (555) 000-0000"
@@ -185,6 +188,8 @@ export default function SignInPhonePage() {
                       id={`otp-${i}`}
                       type="text"
                       inputMode="numeric"
+                      autoComplete={i === 0 ? "one-time-code" : "off"}
+                      aria-label={`Verification code digit ${i + 1}`}
                       maxLength={1}
                       value={digit}
                       onChange={(e) => handleOtpChange(i, e.target.value)}

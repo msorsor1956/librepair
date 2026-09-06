@@ -27,12 +27,34 @@ function getAdminApp(): admin.app.App {
 
 async function verifyFirebaseIdToken(
   idToken: string
-): Promise<admin.auth.DecodedIdToken | null> {
+): Promise<{ uid: string; phone_number?: string } | null> {
+  if (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+    try {
+      const adminApp = getAdminApp();
+      return await admin.auth(adminApp).verifyIdToken(idToken);
+    } catch (e) {
+      console.error("[firebase-admin] verifyIdToken failed:", e);
+      return null;
+    }
+  }
+
+  // Railway does not need a Google service-account key to validate a Firebase
+  // phone session. Identity Toolkit verifies the ID token and returns the
+  // canonical Firebase user record over HTTPS.
+  const apiKey = process.env.VITE_FIREBASE_API_KEY;
+  if (!apiKey) return null;
   try {
-    const adminApp = getAdminApp();
-    return await admin.auth(adminApp).verifyIdToken(idToken);
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(apiKey)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json() as { users?: Array<{ localId: string; phoneNumber?: string }> };
+    const firebaseUser = payload.users?.[0];
+    return firebaseUser ? { uid: firebaseUser.localId, phone_number: firebaseUser.phoneNumber } : null;
   } catch (e) {
-    console.error("[firebase-admin] verifyIdToken failed:", e);
+    console.error("[firebase-rest] verifyIdToken failed:", e);
     return null;
   }
 }
@@ -147,12 +169,18 @@ export const phoneAuthRouter = new Hono()
       return c.json({ error: "Invalid or expired Firebase token" }, 401);
     }
 
+    const normalizedPhone = phone.replace(/[\s\-()]/g, "");
+    const verifiedPhone = decoded.phone_number?.replace(/[\s\-()]/g, "");
+    if (!verifiedPhone || verifiedPhone !== normalizedPhone) {
+      return c.json({ error: "Verified phone number does not match" }, 401);
+    }
+
     // 2. Upsert our user
     const displayName =
       firstName && lastName
         ? `${firstName} ${lastName}`
         : firstName ?? undefined;
-    const { user, action } = await upsertPhoneUser(phone, decoded.uid, displayName);
+    const { user, action } = await upsertPhoneUser(verifiedPhone, decoded.uid, displayName);
 
     // 3. Create Better Auth session
     const { token, expiresAt } = await createBetterAuthSession(user.id);

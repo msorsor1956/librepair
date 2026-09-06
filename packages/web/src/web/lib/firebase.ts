@@ -5,7 +5,6 @@ import {
   signInWithPhoneNumber,
   type ConfirmationResult,
 } from "firebase/auth";
-import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCNMz4Gh65dgyoQOFIFz_u0r-b59Hifq_I",
@@ -20,20 +19,6 @@ const firebaseConfig = {
 // Only initialise once
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const firebaseAuth = getAuth(app);
-
-// App Check — run once, guard with a flag so HMR doesn't double-init
-let appCheckInitialized = false;
-if (typeof window !== "undefined" && !appCheckInitialized) {
-  try {
-    initializeAppCheck(app, {
-      provider: new ReCaptchaEnterpriseProvider("6LedoSItAAAAAB8vTrGfccfxkVbCKL_LRTtRLhoc"),
-      isTokenAutoRefreshEnabled: true,
-    });
-    appCheckInitialized = true;
-  } catch {
-    // Already initialized or reCAPTCHA not loaded yet — safe to ignore
-  }
-}
 
 let recaptchaVerifier: RecaptchaVerifier | null = null;
 
