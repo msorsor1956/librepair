@@ -3,6 +3,7 @@ import { Provider } from "./components/provider";
 import { AgentFeedback } from "@runablehq/website-runtime";
 import { AnnouncementBanner } from "./components/AnnouncementBanner";
 import { ProtectedRoute } from "./components/protected-route";
+import { AppSplash } from "./components/app-splash";
 
 import IndexPage from "./pages/index";
 import WelcomePage from "./pages/welcome";
@@ -31,6 +32,7 @@ import { PrivacyPage, TermsPage, SupportPage, NotFoundPage } from "./pages/publi
 function App() {
   return (
     <Provider>
+      <AppSplash />
       <AnnouncementBanner />
       <Switch>
         {/* Public */}

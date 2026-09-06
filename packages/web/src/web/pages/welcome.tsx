@@ -1,12 +1,11 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { Mail, Phone, Chrome, UserPlus, LogIn } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
+import { InstallApp } from "../components/install-app";
 
 export default function WelcomePage() {
-  const hasGoogle = !!(import.meta.env.VITE_GOOGLE_CLIENT_ID || true); // show always, gracefully fail
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-grid relative overflow-hidden" style={{ backgroundColor: "var(--color-bg)" }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-grid relative overflow-hidden" style={{ backgroundColor: "var(--color-bg)" }}>
       {/* Background glows */}
       <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full opacity-10 pointer-events-none" style={{ background: "radial-gradient(circle, #e02020, transparent 70%)" }} />
       <div className="absolute bottom-[-80px] right-[-80px] w-[300px] h-[300px] rounded-full opacity-5 pointer-events-none" style={{ background: "radial-gradient(circle, #e02020, transparent 70%)" }} />
@@ -15,23 +14,23 @@ export default function WelcomePage() {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="w-full max-w-sm"
+        className="w-full max-w-md"
       >
         {/* Logo + branding */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <motion.img
             src="/logo.png"
             alt="LIBrepair"
-            className="h-16 w-auto mx-auto mb-4"
+            className="h-28 sm:h-32 w-auto mx-auto mb-3 drop-shadow-[0_18px_45px_rgba(239,62,58,0.22)]"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1, duration: 0.5 }}
           />
-          <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: "Rajdhani" }}>LIBrepair</h1>
-          <p className="text-sm" style={{ color: "var(--color-muted)" }}>Premium Automotive Repair &amp; Maintenance</p>
+          <h1 className="text-4xl font-bold mb-1" style={{ fontFamily: "Rajdhani" }}>Welcome to LIBrepair</h1>
+          <p className="text-sm" style={{ color: "var(--color-muted)" }}>Your vehicles, service, and appointments in one place.</p>
         </div>
 
-        <div className="glass rounded-2xl p-7 space-y-3">
+        <div className="glass rounded-2xl p-5 sm:p-7 space-y-3 shadow-[0_32px_90px_rgba(0,0,0,0.42)]">
           <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "var(--color-muted)" }}>Sign In</p>
 
           {/* Google */}
@@ -119,6 +118,8 @@ export default function WelcomePage() {
             </motion.button>
           </Link>
         </div>
+
+        <div className="mt-5"><InstallApp /></div>
 
         <p className="text-xs text-center mt-6" style={{ color: "var(--color-muted)" }}>
           By continuing, you agree to our{" "}
