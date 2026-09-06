@@ -1,11 +1,10 @@
-import { apiFetch } from "@/lib/api";
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Phone, RotateCcw } from "lucide-react";
-import { sendFirebaseOTP, firebaseAuth, clearRecaptcha } from "@/lib/firebase";
+import { sendFirebaseOTP, clearRecaptcha } from "@/lib/firebase";
 import type { ConfirmationResult } from "firebase/auth";
-import { signOut } from "firebase/auth";
+import { authClient } from "@/lib/auth";
 
 export default function SignInPhonePage() {
   useEffect(() => {
@@ -56,20 +55,9 @@ export default function SignInPhonePage() {
     setError("");
     try {
       // Confirm OTP via Firebase
-      const credential = await confirmationRef.current.confirm(code);
-      const idToken = await credential.user.getIdToken();
-
-      // Sign Firebase user out — we manage session via Better Auth cookie
-      await signOut(firebaseAuth);
-
-      // Exchange Firebase token for our session
-      const res = await apiFetch("/api/phone-auth/firebase-verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken, phone }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Verification failed"); return; }
+      await confirmationRef.current.confirm(code);
+      const result = await authClient.getSession();
+      if (!result.data) { setError("Unable to load your account status."); return; }
 
       navigate("/customer/dashboard");
     } catch (e: any) {

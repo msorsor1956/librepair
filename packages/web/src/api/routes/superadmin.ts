@@ -4,7 +4,7 @@ import * as schema from "../database/schema";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { authMiddleware, requireAuth } from "../middleware/auth";
 import type { HonoVariables } from "../types";
-import { auth } from "../auth";
+import { firebaseAdminAuth } from "../firebase-admin";
 import Stripe from "stripe";
 import { execSync } from "child_process";
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -118,7 +118,7 @@ async function toPresignedUrl(url: string): Promise<string> {
 }
 
 
-const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY ?? "sk_test_placeholder", { apiVersion: "2025-05-28.basil" });
+const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY ?? "sk_test_placeholder", { apiVersion: "2026-05-27.dahlia" });
 
 const SUPER_ADMIN_EMAILS = ["m.sorsor@sonnietech.com", "sonnietechnologyllc@gmail.com"];
 
@@ -141,25 +141,33 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
      Call this anytime to fix missing Google/social signups
   ══════════════════════════════════════════════════ */
   .post("/sync-users", requireAuth, requireSuperAdmin, async (c) => {
-    // Grab all better-auth users via raw SQL
-    const { sql } = await import("drizzle-orm");
-    const baUsers = await db.run(sql`SELECT id, name, email, image FROM user`);
-    const rows = (baUsers as any).rows ?? [];
-    const existingUsers = await db.select({ id: schema.users.id }).from(schema.users);
-    const existingIds = new Set(existingUsers.map(u => u.id));
     let synced = 0;
-    for (const row of rows) {
-      const id = row.id ?? row[0];
-      const name = row.name ?? row[1] ?? "";
-      const email = row.email ?? row[2] ?? "";
-      const image = row.image ?? row[3] ?? null;
-      if (!existingIds.has(id)) {
-        try {
-          await db.insert(schema.users).values({ id, name: name || email, email, profilePhoto: image, role: "customer", isActive: true }).onConflictDoNothing();
+    let pageToken: string | undefined;
+    do {
+      const page = await firebaseAdminAuth().listUsers(1000, pageToken);
+      for (const firebaseUser of page.users) {
+        const [byUid] = await db.select().from(schema.users).where(eq(schema.users.firebaseUid, firebaseUser.uid)).limit(1);
+        const [byEmail] = firebaseUser.email ? await db.select().from(schema.users).where(eq(schema.users.email, firebaseUser.email.toLowerCase())).limit(1) : [];
+        const existing = byUid ?? byEmail;
+        if (existing) {
+          await db.update(schema.users).set({ firebaseUid: firebaseUser.uid, updatedAt: new Date() }).where(eq(schema.users.id, existing.id));
+        } else {
+          await db.insert(schema.users).values({
+            id: firebaseUser.uid,
+            firebaseUid: firebaseUser.uid,
+            name: firebaseUser.displayName || firebaseUser.email || firebaseUser.phoneNumber || "Firebase user",
+            email: firebaseUser.email?.toLowerCase() ?? `phone_${firebaseUser.uid}@firebase.librepair.invalid`,
+            phone: firebaseUser.phoneNumber ?? null,
+            profilePhoto: firebaseUser.photoURL ?? null,
+            role: "customer",
+            isActive: !firebaseUser.disabled,
+            approvalStatus: "pending",
+          });
           synced++;
-        } catch { /* ignore */ }
+        }
       }
-    }
+      pageToken = page.pageToken;
+    } while (pageToken);
     const total = await db.select({ id: schema.users.id }).from(schema.users);
     return c.json({ synced, total: total.length, message: `Synced ${synced} missing users. Total users: ${total.length}` }, 200);
   })
@@ -257,21 +265,17 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
     const tempPassword = Array.from({ length: 14 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 
-    const signupResult = await auth.api.signUpEmail({
-      body: { email: body.email, password: tempPassword, name: body.name },
-    });
-    if (!signupResult?.user?.id) return c.json({ message: "Failed to create auth user" }, 500);
-
-    const [updated] = await db.update(schema.users).set({
-      phone: body.phone ?? null,
-      address: body.address ?? null,
-      role: role,
-      updatedAt: new Date(),
-    }).where(eq(schema.users.id, signupResult.user.id)).returning();
+    const firebaseUser = await firebaseAdminAuth().createUser({ email: body.email, password: tempPassword, displayName: body.name, phoneNumber: body.phone || undefined });
+    const [updated] = await db.insert(schema.users).values({
+      id: firebaseUser.uid, firebaseUid: firebaseUser.uid, name: body.name,
+      email: body.email.toLowerCase(), phone: body.phone ?? null, address: body.address ?? null,
+      role, isActive: body.isActive !== false, approvalStatus: "approved",
+      approvedAt: new Date(), approvedBy: c.get("user")!.id,
+    }).returning();
 
     // Save in-app notification
     await db.insert(schema.notifications).values({
-      userId: signupResult.user.id,
+      userId: firebaseUser.uid,
       title: "Welcome to LIBrepair!",
       message: `Your account has been created as ${role}. Please check your email to set your password.`,
       type: "system",
@@ -340,11 +344,12 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
 
     // Send email
     try {
-      await auth.api.requestPasswordReset({
-        body: {
-          email: user.email,
-          redirectTo: `${frontendUrl}/reset-password`,
-        },
+      const resetLink = await firebaseAdminAuth().generatePasswordResetLink(user.email, { url: `${frontendUrl}/sign-in` });
+      await getMailTransporter().sendMail({
+        from: `"LIBrepair" <${process.env.SMTP_USER ?? "libsupport@librepair.com"}>`,
+        to: user.email,
+        subject: "Reset your LIBrepair password",
+        html: `<p>Hi ${user.name},</p><p><a href="${resetLink}">Reset your LIBrepair password</a>. If you did not request this, ignore this email.</p>`,
       });
       emailSent = true;
     } catch (e) {
@@ -1087,7 +1092,7 @@ export const superAdminRouter = new Hono<{ Variables: HonoVariables }>()
   })
 
   .patch("/appointments/:id", requireAuth, requireSuperAdmin, async (c) => {
-    const id = c.req.param("id");
+    const id = Number(c.req.param("id"));
     const body = await c.req.json();
     const updates: Record<string, any> = { updatedAt: new Date() };
     ["status","notes","mechanicNotes","serviceType","customerAddress"].forEach(k => { if (body[k] !== undefined) updates[k] = body[k]; });

@@ -42,9 +42,13 @@ packages/
     vite.config.ts           Vite config
 ```
 
+## Authentication and account approval
+
+Firebase Authentication supplies Google, email/password, and SMS phone identity for all clients. The API independently enforces application roles and administrator approval. See `FIREBASE_SETUP.md` for Console, mobile, secret, migration, and deployment steps.
+
 ## Environment Variables
 
-Secrets and credentials live in `.env` at the project root (gitignored). Vite's `loadEnv` loads them into `process.env` at dev/build time (configured in `packages/web/vite.config.ts`). In API code (Hono), use `process.env.YOUR_VAR`. In browser code, only `VITE_`-prefixed vars are exposed via `import.meta.env.VITE_YOUR_VAR`. Drizzle scripts use `bun --env-file=../../.env` to load env vars directly.
+Secrets and credentials live in `.env` at the project root (gitignored). Vite's `loadEnv` loads them into `process.env` at dev/build time (configured in `packages/web/vite.config.ts`). In API code (Hono), use `process.env.YOUR_VAR`. In browser code, only `VITE_`-prefixed vars are exposed via `import.meta.env.VITE_YOUR_VAR`. Firebase Admin service-account values must never use a public prefix. Drizzle scripts use `bun --env-file=../../.env` to load env vars directly.
 
 ## Desktop UI
 

@@ -17,6 +17,7 @@ const navGroups: (NavItem | NavGroup)[] = [
     icon: Users,
     items: [
       { href: "/users", label: "All Users", icon: Users },
+      { href: "/approvals", label: "Account Approvals", icon: Shield },
       { href: "/mechanics", label: "Mechanics", icon: Wrench },
     ],
   },

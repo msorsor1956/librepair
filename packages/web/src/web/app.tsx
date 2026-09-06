@@ -49,19 +49,19 @@ function App() {
         <Route path="/reset-password" component={ResetPasswordPage} />
 
         {/* Customer */}
-        <Route path="/customer/dashboard" component={CustomerDashboardPage} />
+        <Route path="/customer/dashboard">{() => <ProtectedRoute><CustomerDashboardPage /></ProtectedRoute>}</Route>
 
         {/* Admin / Staff */}
-        <Route path="/dashboard" component={DashboardPage} />
-        <Route path="/dashboard/vehicles" component={VehiclesPage} />
-        <Route path="/dashboard/appointments" component={AppointmentsPage} />
-        <Route path="/dashboard/appointments/:id" component={AppointmentsPage} />
-        <Route path="/dashboard/payments" component={PaymentsPage} />
-        <Route path="/dashboard/notifications" component={NotificationsPage} />
+        <Route path="/dashboard">{() => <ProtectedRoute><DashboardPage /></ProtectedRoute>}</Route>
+        <Route path="/dashboard/vehicles">{() => <ProtectedRoute><VehiclesPage /></ProtectedRoute>}</Route>
+        <Route path="/dashboard/appointments">{() => <ProtectedRoute><AppointmentsPage /></ProtectedRoute>}</Route>
+        <Route path="/dashboard/appointments/:id">{() => <ProtectedRoute><AppointmentsPage /></ProtectedRoute>}</Route>
+        <Route path="/dashboard/payments">{() => <ProtectedRoute><PaymentsPage /></ProtectedRoute>}</Route>
+        <Route path="/dashboard/notifications">{() => <ProtectedRoute><NotificationsPage /></ProtectedRoute>}</Route>
         <Route path="/book">{() => <ProtectedRoute><BookPage /></ProtectedRoute>}</Route>
-        <Route path="/profile" component={ProfilePage} />
-        <Route path="/admin" component={AdminPage} />
-        <Route path="/mechanic" component={MechanicPage} />
+        <Route path="/profile">{() => <ProtectedRoute><ProfilePage /></ProtectedRoute>}</Route>
+        <Route path="/admin">{() => <ProtectedRoute><AdminPage /></ProtectedRoute>}</Route>
+        <Route path="/mechanic">{() => <ProtectedRoute><MechanicPage /></ProtectedRoute>}</Route>
         <Route path="/cars-for-sale" component={CarsForSalePage} />
         <Route path="/van-for-rent" component={VanForRentPage} />
         <Route path="/schedule" component={ZohoBookingsPage} />

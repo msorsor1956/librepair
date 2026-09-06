@@ -3,6 +3,9 @@ import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 // Users table (customers, mechanics, admins)
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
+  // Keep the application id stable for existing domain relationships while
+  // linking it to Firebase Authentication's uid.
+  firebaseUid: text("firebase_uid").unique(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   phone: text("phone"),
@@ -10,6 +13,10 @@ export const users = sqliteTable("users", {
   address: text("address"),
   profilePhoto: text("profile_photo"),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  approvalStatus: text("approval_status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
+  approvalNotes: text("approval_notes"),
+  approvedAt: integer("approved_at", { mode: "timestamp" }),
+  approvedBy: text("approved_by"),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });

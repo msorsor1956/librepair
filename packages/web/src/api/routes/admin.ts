@@ -4,7 +4,7 @@ import * as schema from "../database/schema";
 import { eq, and } from "drizzle-orm";
 import { authMiddleware, requireAuth } from "../middleware/auth";
 import type { HonoVariables } from "../types";
-import { auth } from "../auth";
+import { firebaseAdminAuth } from "../firebase-admin";
 
 const SUPER_ADMIN_EMAIL = "m.sorsor@sonnietech.com";
 
@@ -44,6 +44,37 @@ export const adminRouter = new Hono<{ Variables: HonoVariables }>()
     return c.json({ users }, 200);
   })
 
+  .get("/approvals", requireAuth, requireAdmin, async (c) => {
+    const accounts = await db.select().from(schema.users);
+    return c.json({ accounts: accounts.filter((user) => user.role !== "admin" && user.approvalStatus !== "approved") }, 200);
+  })
+
+  .patch("/approvals/:id", requireAuth, requireAdmin, async (c) => {
+    const actor = c.get("user")!;
+    const id = c.req.param("id");
+    const body = await c.req.json<{ status: "approved" | "rejected"; notes?: string }>();
+    if (!(["approved", "rejected"] as const).includes(body.status)) {
+      return c.json({ message: "status must be approved or rejected" }, 400);
+    }
+    const [updated] = await db.update(schema.users).set({
+      approvalStatus: body.status,
+      approvalNotes: body.notes?.trim() || null,
+      approvedAt: body.status === "approved" ? new Date() : null,
+      approvedBy: actor.id,
+      updatedAt: new Date(),
+    }).where(eq(schema.users.id, id)).returning();
+    if (!updated) return c.json({ message: "Account not found" }, 404);
+    await db.insert(schema.notifications).values({
+      userId: updated.id,
+      title: body.status === "approved" ? "Account approved" : "Account request rejected",
+      message: body.status === "approved"
+        ? "Your LIBrepair account is approved. You can now access the application."
+        : body.notes?.trim() || "Your LIBrepair account request was rejected. Contact support for help.",
+      type: "system",
+    });
+    return c.json({ user: updated }, 200);
+  })
+
   // Get single user (admin+)
   .get("/users/:id", requireAuth, requireAdmin, async (c) => {
     const id = c.req.param("id");
@@ -59,26 +90,18 @@ export const adminRouter = new Hono<{ Variables: HonoVariables }>()
     // Check if user with email already exists
     const [existing] = await db.select().from(schema.users).where(eq(schema.users.email, body.email));
     if (existing) return c.json({ message: "Email already registered" }, 409);
-    // Create auth account
-    const signupResult = await auth.api.signUpEmail({
-      body: {
-        email: body.email,
-        password: body.password ?? "TempPass123!",
-        name: body.name,
-      },
+    const firebaseUser = await firebaseAdminAuth().createUser({
+      email: body.email,
+      password: body.password ?? crypto.randomUUID() + "A1!",
+      displayName: body.name,
+      phoneNumber: body.phone || undefined,
     });
-    if (!signupResult?.user?.id) return c.json({ message: "Failed to create user" }, 500);
-    // Update extra fields in DB
-    const [updated] = await db
-      .update(schema.users)
-      .set({
-        phone: body.phone ?? null,
-        address: body.address ?? null,
-        role: "customer",
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.users.id, signupResult.user.id))
-      .returning();
+    const [updated] = await db.insert(schema.users).values({
+      id: firebaseUser.uid, firebaseUid: firebaseUser.uid, name: body.name,
+      email: body.email.toLowerCase(), phone: body.phone ?? null, address: body.address ?? null,
+      role: "customer", isActive: true, approvalStatus: "approved",
+      approvedAt: new Date(), approvedBy: c.get("user")!.id,
+    }).returning();
     return c.json(updated, 201);
   })
 
@@ -172,22 +195,18 @@ export const adminRouter = new Hono<{ Variables: HonoVariables }>()
       return c.json({ message: "Existing user promoted to admin", user: updated }, 200);
     }
 
-    // Create new auth account
-    const signupResult = await auth.api.signUpEmail({
-      body: {
-        email: body.email,
-        password: body.password ?? "AdminPass123!",
-        name: body.name,
-      },
+    const firebaseUser = await firebaseAdminAuth().createUser({
+      email: body.email,
+      password: body.password ?? crypto.randomUUID() + "A1!",
+      displayName: body.name,
+      phoneNumber: body.phone || undefined,
     });
-    if (!signupResult?.user?.id) return c.json({ message: "Failed to create user" }, 500);
-
-    // Set role to admin
-    const [updated] = await db
-      .update(schema.users)
-      .set({ role: "admin", phone: body.phone ?? null, updatedAt: new Date() })
-      .where(eq(schema.users.id, signupResult.user.id))
-      .returning();
+    const [updated] = await db.insert(schema.users).values({
+      id: firebaseUser.uid, firebaseUid: firebaseUser.uid, name: body.name,
+      email: body.email.toLowerCase(), role: "admin", phone: body.phone ?? null,
+      isActive: true, approvalStatus: "approved", approvedAt: new Date(),
+      approvedBy: c.get("user")!.id,
+    }).returning();
 
     return c.json({ message: "Admin created", user: updated }, 201);
   })

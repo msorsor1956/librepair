@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { auth } from "./auth";
+import { firebaseAuthRouter } from "./routes/firebase-auth";
 import { usersRouter } from "./routes/users";
 import { vehiclesRouter } from "./routes/vehicles";
 import { servicesRouter } from "./routes/services";
@@ -11,7 +11,6 @@ import { remindersRouter } from "./routes/reminders";
 import { adminRouter } from "./routes/admin";
 import { partsRouter } from "./routes/parts";
 import { paymentsRouter } from "./routes/payments";
-import { phoneAuthRouter } from "./routes/phone-auth";
 import { customerRouter } from "./routes/customer";
 import { inventoryRouter } from "./routes/inventory";
 import { superAdminRouter } from "./routes/superadmin";
@@ -20,6 +19,7 @@ import { contactRouter } from "./routes/contact";
 import { db } from "./database";
 import * as schema from "./database/schema";
 import { eq, and, gt } from "drizzle-orm";
+import { authMiddleware } from "./middleware/auth";
 
 const ALLOWED_ORIGINS = [
   "https://librepair.wasmer.app",
@@ -40,9 +40,10 @@ const app = new Hono()
     credentials: true,
     exposeHeaders: ["set-auth-token"],
   }))
-  .on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw))
+  .use("/api/*", authMiddleware)
   .basePath("api")
   .get("/health", (c) => c.json({ status: "ok" }, 200))
+  .route("/auth", firebaseAuthRouter)
   .route("/users", usersRouter)
   .route("/vehicles", vehiclesRouter)
   .route("/services", servicesRouter)
@@ -54,7 +55,6 @@ const app = new Hono()
   .route("/admin", adminRouter)
   .route("/parts", partsRouter)
   .route("/payments", paymentsRouter)
-  .route("/phone-auth", phoneAuthRouter)
   .route("/customer", customerRouter)
   .route("/inventory", inventoryRouter)
   .route("/superadmin", superAdminRouter)

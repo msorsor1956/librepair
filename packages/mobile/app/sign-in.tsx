@@ -4,7 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { authClient, setToken, captureToken } from "../lib/auth";
+import { authClient, captureToken, signInWithGoogle } from "../lib/auth";
 import { AnimatedLogo } from "../components/AnimatedLogo";
 
 type Method = "email" | "phone";
@@ -28,7 +28,7 @@ export default function SignIn() {
     try {
       const res = await authClient.signIn.email(
         { email, password },
-        { onResponse: (ctx) => captureToken(ctx.response) }
+        { onResponse: (ctx: { response: Response }) => captureToken(ctx.response) }
       );
       if (res.error) {
         Alert.alert("Sign In Failed", res.error.message ?? "Invalid credentials.");
@@ -37,6 +37,18 @@ export default function SignIn() {
       }
     } catch (e: any) {
       Alert.alert("Error", e.message ?? "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+      router.replace("/(tabs)/");
+    } catch (e: any) {
+      Alert.alert("Google Sign In Failed", e.message ?? "Please try again.");
     } finally {
       setLoading(false);
     }
@@ -110,6 +122,10 @@ export default function SignIn() {
           onPress={() => router.push("/sign-in-phone")}
         >
           <Text style={styles.socialBtnText}>📱  Continue with Phone</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleSignIn} disabled={loading}>
+          <Text style={styles.socialBtnText}>Continue with Google</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push("/sign-up")} style={styles.link}>

@@ -81,7 +81,7 @@ export default function VanForRentPage() {
     try {
       const res = await fetch(`${API}/api/rentals/book`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("bearer_token")}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vehicleId: bookingVehicle.id,
           startDate: new Date(booking.startDate).toISOString(),

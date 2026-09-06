@@ -3,10 +3,8 @@ import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Mail, Phone, RotateCcw, CheckCircle } from "lucide-react";
 import { authClient } from "../lib/auth";
-import { sendFirebaseOTP, firebaseAuth, clearRecaptcha } from "../lib/firebase";
+import { sendFirebaseOTP, clearRecaptcha } from "../lib/firebase";
 import type { ConfirmationResult } from "firebase/auth";
-import { signOut } from "firebase/auth";
-import { apiFetch } from "../lib/api";
 
 type Mode = "select" | "email" | "phone" | "phone-otp" | "success";
 
@@ -64,18 +62,9 @@ export default function ForgotPasswordPage() {
     if (!confirmationRef.current) { setError("Session expired. Resend code."); return; }
     setLoading(true); setError("");
     try {
-      const credential = await confirmationRef.current.confirm(code);
-      const idToken = await credential.user.getIdToken();
-      await signOut(firebaseAuth);
-      // Sign user in via phone (reuse the firebase-verify endpoint)
-      const res = await apiFetch("/api/phone-auth/firebase-verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken, phone }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Verification failed"); return; }
-      // Phone verified — redirect to dashboard (they're now logged in)
+      await confirmationRef.current.confirm(code);
+      const result = await authClient.getSession();
+      if (!result.data) { setError("Unable to load your account status."); return; }
       window.location.href = "/customer/dashboard";
     } catch (e: any) {
       const msg = e?.code === "auth/invalid-verification-code"

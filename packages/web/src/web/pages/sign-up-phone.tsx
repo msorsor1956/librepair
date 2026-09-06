@@ -1,11 +1,10 @@
-import { apiFetch } from "@/lib/api";
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Phone, RotateCcw } from "lucide-react";
-import { sendFirebaseOTP, firebaseAuth, clearRecaptcha } from "@/lib/firebase";
-import type { ConfirmationResult } from "firebase/auth";
-import { signOut } from "firebase/auth";
+import { sendFirebaseOTP, clearRecaptcha } from "@/lib/firebase";
+import { updateProfile, type ConfirmationResult } from "firebase/auth";
+import { authClient } from "@/lib/auth";
 
 export default function SignUpPhonePage() {
   const [, navigate] = useLocation();
@@ -64,16 +63,9 @@ export default function SignUpPhonePage() {
     setError("");
     try {
       const credential = await confirmationRef.current.confirm(code);
-      const idToken = await credential.user.getIdToken();
-      await signOut(firebaseAuth);
-
-      const res = await apiFetch("/api/phone-auth/firebase-verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken, phone, firstName, lastName }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Verification failed"); return; }
+      await updateProfile(credential.user, { displayName: `${firstName} ${lastName}`.trim() });
+      const result = await authClient.getSession();
+      if (!result.data) { setError("Unable to register your account."); return; }
 
       navigate("/customer/dashboard");
     } catch (e: any) {

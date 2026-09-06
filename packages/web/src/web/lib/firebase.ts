@@ -7,18 +7,18 @@ import {
 } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCNMz4Gh65dgyoQOFIFz_u0r-b59Hifq_I",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "librepair-77afa.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "librepair-77afa",
-  storageBucket: "librepair-77afa.firebasestorage.app",
-  messagingSenderId: "86955698956",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:86955698956:web:2211ccf5087b05810c3729",
-  measurementId: "G-8T9W7EN38M",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 // Only initialise once
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const firebaseAuth = getAuth(app);
+export { app as firebaseApp };
 
 let recaptchaVerifier: RecaptchaVerifier | null = null;
 

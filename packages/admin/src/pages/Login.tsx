@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { signIn } from "../lib/auth";
+import { signIn, signInWithGoogle } from "../lib/auth";
 import type { AdminUser } from "../App";
 import { Mail, Lock, AlertCircle } from "lucide-react";
 
@@ -22,6 +22,13 @@ export default function LoginPage({ onLogin }: { onLogin: (u: AdminUser) => void
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleGoogle() {
+    setError(""); setLoading(true);
+    try { const res = await signInWithGoogle(); if (res?.user) onLogin(res.user); }
+    catch (err: any) { setError(err.message ?? "Google sign in failed"); }
+    finally { setLoading(false); }
   }
 
   return (
@@ -115,6 +122,9 @@ export default function LoginPage({ onLogin }: { onLogin: (u: AdminUser) => void
             style={{ width: "100%", justifyContent: "center", padding: "13px 16px", marginTop: 4, fontSize: 14, fontWeight: 700, letterSpacing: "0.04em" }}
           >
             {loading ? "Signing in..." : "Sign In"}
+          </button>
+          <button type="button" className="btn btn-ghost" disabled={loading} onClick={handleGoogle} style={{ width: "100%", justifyContent: "center" }}>
+            Continue with Google
           </button>
         </form>
 

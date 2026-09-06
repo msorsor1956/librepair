@@ -4,7 +4,8 @@ import {
   KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { baseURL, captureToken } from "../lib/auth";
+import auth, { type FirebaseAuthTypes } from "@react-native-firebase/auth";
+import { authClient } from "../lib/auth";
 import { AnimatedLogo } from "../components/AnimatedLogo";
 
 type Step = "phone" | "otp";
@@ -15,6 +16,7 @@ export default function SignInPhone() {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [confirmation, setConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
 
   async function sendOTP() {
     const clean = phone.replace(/\D/g, "");
@@ -24,13 +26,8 @@ export default function SignInPhone() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${baseURL}/api/phone-auth/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: `+1${clean}` }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to send OTP");
+      const result = await auth().signInWithPhoneNumber(`+1${clean}`);
+      setConfirmation(result);
       setStep("otp");
     } catch (e: any) {
       Alert.alert("Error", e.message);
@@ -44,20 +41,11 @@ export default function SignInPhone() {
       Alert.alert("Error", "Enter the 6-digit code.");
       return;
     }
-    const clean = phone.replace(/\D/g, "");
     setLoading(true);
     try {
-      const res = await fetch(`${baseURL}/api/phone-auth/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: `+1${clean}`, otp }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Invalid code");
-      if (data.token) {
-        const { setToken } = await import("../lib/auth");
-        await setToken(data.token);
-      }
+      if (!confirmation) throw new Error("Verification session expired. Send a new code.");
+      await confirmation.confirm(otp);
+      await authClient.getSession();
       router.replace("/(tabs)/");
     } catch (e: any) {
       Alert.alert("Error", e.message);

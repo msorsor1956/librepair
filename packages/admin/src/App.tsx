@@ -1,7 +1,6 @@
 import { Route, Switch, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { getSession } from "./lib/auth";
-import { getToken } from "./lib/api";
 import LoginPage from "./pages/Login";
 import DashboardLayout from "./components/DashboardLayout";
 import StatsPage from "./pages/Stats";
@@ -19,6 +18,7 @@ import RemindersPage from "./pages/Reminders";
 import InvoicesPage from "./pages/Invoices";
 import ReportsPage from "./pages/Reports";
 import RentalsPage from "./pages/Rentals";
+import ApprovalsPage from "./pages/Approvals";
 
 export type AdminUser = { id: string; email: string; name: string; role: string };
 
@@ -28,7 +28,6 @@ function App() {
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    if (!getToken()) { setLoading(false); return; }
     getSession()
       .then(s => {
         if (s?.user) setUser(s.user);
@@ -57,6 +56,7 @@ function App() {
       <Switch>
         <Route path="/" component={StatsPage} />
         <Route path="/users" component={UsersPage} />
+        <Route path="/approvals" component={ApprovalsPage} />
         <Route path="/appointments" component={AppointmentsPage} />
         <Route path="/payments" component={PaymentsPage} />
         <Route path="/inventory" component={InventoryPage} />

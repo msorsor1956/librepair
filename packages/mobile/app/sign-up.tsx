@@ -4,7 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { authClient, captureToken } from "../lib/auth";
+import { authClient, captureToken, signInWithGoogle } from "../lib/auth";
 import { AnimatedLogo } from "../components/AnimatedLogo";
 
 export default function SignUp() {
@@ -32,17 +32,31 @@ export default function SignUp() {
     try {
       const res = await authClient.signUp.email(
         { name, email, password },
-        { onResponse: (ctx) => captureToken(ctx.response) }
+        { onResponse: (ctx: { response: Response }) => captureToken(ctx.response) }
       );
       if (res.error) {
         Alert.alert("Sign Up Failed", res.error.message ?? "Could not create account.");
       } else {
-        Alert.alert("Account Created", "Welcome to LIBrepair!", [
+        Alert.alert("Account Created", "Your account is waiting for administrator approval.", [
           { text: "OK", onPress: () => router.replace("/(tabs)/") },
         ]);
       }
     } catch (e: any) {
       Alert.alert("Error", e.message ?? "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogleSignUp() {
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+      Alert.alert("Account Created", "Your account is waiting for administrator approval.", [
+        { text: "OK", onPress: () => router.replace("/(tabs)/") },
+      ]);
+    } catch (e: any) {
+      Alert.alert("Google Sign Up Failed", e.message ?? "Please try again.");
     } finally {
       setLoading(false);
     }
@@ -111,6 +125,10 @@ export default function SignUp() {
           onPress={() => router.push("/sign-in-phone")}
         >
           <Text style={styles.socialBtnText}>📱  Sign Up with Phone</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleSignUp} disabled={loading}>
+          <Text style={styles.socialBtnText}>Sign Up with Google</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push("/sign-in")} style={styles.link}>

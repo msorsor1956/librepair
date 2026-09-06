@@ -15,5 +15,17 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
   if (!session) return <Redirect to="/welcome" />;
+  if (session.user.approvalStatus !== "approved" && session.user.role !== "admin") {
+    const rejected = session.user.approvalStatus === "rejected";
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: "var(--color-bg)" }}>
+        <div className="glass rounded-2xl p-8 text-center max-w-lg">
+          <h1 className="text-2xl font-bold mb-3">{rejected ? "Account request rejected" : "Approval pending"}</h1>
+          <p style={{ color: "var(--color-muted)" }}>{rejected ? (session.user.approvalNotes || "Contact LIBrepair support if you believe this is an error.") : "An administrator must approve your account before you can access customer or staff features."}</p>
+          <button className="btn btn-red mt-6" onClick={() => void authClient.signOut()}>Sign out</button>
+        </div>
+      </div>
+    );
+  }
   return <>{children}</>;
 }

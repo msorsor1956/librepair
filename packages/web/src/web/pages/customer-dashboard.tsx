@@ -37,11 +37,11 @@ export default function CustomerDashboardPage() {
     setLoading(true);
     try {
       const [notifRes, apptRes, vehRes, invRes, payRes] = await Promise.allSettled([
-        apiFetch("/api/customer/notifications", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
-        apiFetch("/api/customer/appointments", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
-        apiFetch("/api/customer/vehicles", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
-        apiFetch("/api/customer/invoices", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
-        apiFetch("/api/customer/payments", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } }),
+        apiFetch("/api/customer/notifications"),
+        apiFetch("/api/customer/appointments"),
+        apiFetch("/api/customer/vehicles"),
+        apiFetch("/api/customer/invoices"),
+        apiFetch("/api/customer/payments"),
       ]);
       if (notifRes.status === "fulfilled" && notifRes.value.ok) setNotifications((await notifRes.value.json()).notifications ?? []);
       if (apptRes.status === "fulfilled" && apptRes.value.ok) setAppointments((await apptRes.value.json()).appointments ?? []);
@@ -282,7 +282,7 @@ function VehiclesTab({ vehicles, onRefresh }: { vehicles: any[]; onRefresh: () =
     setLoading(true);
     await apiFetch("/api/customer/vehicles", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("bearer_token")}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...form, year: parseInt(form.year), mileage: parseInt(form.mileage) || 0 }),
     });
     setLoading(false);
@@ -484,7 +484,7 @@ function NotificationsTab({ notifications, onRefresh }: { notifications: any[]; 
   const markRead = async (id: number) => {
     await fetch(`/api/customer/notifications/${id}/read`, {
       method: "PATCH",
-      headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` },
+      headers: {},
     });
     onRefresh();
   };
@@ -526,7 +526,7 @@ function ProfileTab({ session, onRefresh }: { session: any; onRefresh: () => voi
     setLoading(true);
     await apiFetch("/api/customer/profile", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("bearer_token")}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, phone, address }),
     });
     setLoading(false);
@@ -656,7 +656,7 @@ function RentalsTab() {
 
   const load = () => {
     setLoading(true);
-    apiFetch("/api/rentals/my-bookings", { headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` } })
+    apiFetch("/api/rentals/my-bookings")
       .then((r: any) => setBookings(r.bookings ?? r ?? []))
       .catch(() => setBookings([]))
       .finally(() => setLoading(false));
@@ -670,7 +670,7 @@ function RentalsTab() {
     try {
       await apiFetch(`/api/rentals/bookings/${id}/cancel`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("bearer_token")}` },
+        headers: {},
       });
       load();
     } catch { alert("Failed to cancel. Try again."); }

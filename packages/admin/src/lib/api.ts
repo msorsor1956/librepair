@@ -20,10 +20,6 @@ async function request(method: string, path: string, body?: unknown) {
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  // Capture token from response header (better-auth bearer)
-  const newToken = res.headers.get("set-auth-token");
-  if (newToken) setToken(newToken);
-
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
     throw new Error(err.message ?? `HTTP ${res.status}`);
@@ -44,8 +40,6 @@ export async function apiFetch(url: string, init: RequestInit = {}): Promise<any
   const headers: Record<string, string> = { ...(init.headers as Record<string, string> ?? {}) };
   if (_token && !headers["Authorization"]) headers["Authorization"] = `Bearer ${_token}`;
   const res = await fetch(url, { ...init, headers, credentials: "include" });
-  const newToken = res.headers.get("set-auth-token");
-  if (newToken) setToken(newToken);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
     throw new Error(err.message ?? `HTTP ${res.status}`);

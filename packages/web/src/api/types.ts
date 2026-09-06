@@ -1,9 +1,9 @@
-import type { auth } from "./auth";
+import type { DecodedIdToken } from "firebase-admin/auth";
+import type { users } from "./database/schema";
 
-// Infer the session type from better-auth
-type AuthSession = typeof auth.$Infer.Session;
+type ApplicationUser = typeof users.$inferSelect;
 
 export type HonoVariables = {
-  user: AuthSession["user"] | null;
-  session: AuthSession["session"] | null;
+  user: ApplicationUser | null;
+  session: DecodedIdToken | null;
 };
