@@ -1,5 +1,16 @@
-const CACHE = "librepair-shell-v1";
-const SHELL = ["/", "/welcome", "/manifest.webmanifest", "/logo.png", "/icon-192.png", "/icon-512.png"];
+const CACHE = "librepair-shell-v2";
+const SHELL = [
+  "/",
+  "/welcome",
+  "/manifest-v2.webmanifest",
+  "/logo.png",
+  "/librepair-favicon-v2-16.png",
+  "/librepair-favicon-v2-32.png",
+  "/librepair-favicon-v2.ico",
+  "/librepair-touch-icon-v2.png",
+  "/librepair-icon-v2-192.png",
+  "/librepair-icon-v2-512.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
