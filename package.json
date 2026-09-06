@@ -14,7 +14,7 @@
     "build:web": "cd packages/web && bunx vite build",
     "lint": "oxlint . --deny-warnings --no-error-on-unmatched-pattern",
     "lint:fix": "oxlint . --fix --deny-warnings --no-error-on-unmatched-pattern",
-    "typecheck": "turbo typecheck",
+    "typecheck": "bun run --cwd packages/web typecheck && bun run --cwd packages/admin typecheck && bun run --cwd packages/mobile typecheck && bun run --cwd packages/desktop typecheck",
     "db:generate": "turbo db:generate",
     "db:migrate": "turbo db:migrate",
     "db:push": "turbo db:push",
@@ -22,7 +22,6 @@
     "kill:port": "lsof -t -i :${PORT:-4200} | xargs kill -9"
   },
   "devDependencies": {
-    "@tursodatabase/api": "^1.9.2",
     "@types/bun": "latest",
     "oxlint": "^1.66.0",
     "turbo": "^2"
@@ -32,7 +31,6 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1023.0",
-    "@libsql/client": "^0.17.2",
     "cloudflare": "^5.2.0",
     "pm2": "^7.0.1"
   }

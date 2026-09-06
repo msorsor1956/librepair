@@ -17,7 +17,7 @@ packages/
       api/
         index.ts             Hono routes (.basePath('api')) + AppType export
         database/
-          index.ts           Database client (Turso/LibSQL)
+          index.ts           Database client (PostgreSQL)
           schema.ts          Drizzle schema
       web/
         main.tsx             App entry
@@ -48,7 +48,7 @@ Firebase Authentication supplies Google, email/password, and SMS phone identity 
 
 ## Environment Variables
 
-Secrets and credentials live in `.env` at the project root (gitignored). Vite's `loadEnv` loads them into `process.env` at dev/build time (configured in `packages/web/vite.config.ts`). In API code (Hono), use `process.env.YOUR_VAR`. In browser code, only `VITE_`-prefixed vars are exposed via `import.meta.env.VITE_YOUR_VAR`. Firebase Admin service-account values must never use a public prefix. Drizzle scripts use `bun --env-file=../../.env` to load env vars directly.
+Secrets and credentials live in `.env` at the project root (gitignored). Vite's `loadEnv` loads them into `process.env` at dev/build time (configured in `packages/web/vite.config.ts`). In API code (Hono), use `process.env.YOUR_VAR`. In browser code, only `VITE_`-prefixed vars are exposed via `import.meta.env.VITE_YOUR_VAR`. Firebase Admin service-account values must never use a public prefix. Drizzle scripts use `bun --env-file=../../.env` to load env vars directly. The server expects a PostgreSQL `DATABASE_URL`; on Railway, reference the Postgres service variable instead of copying credentials.
 
 ## Desktop UI
 
@@ -59,6 +59,8 @@ The desktop app has no separate renderer by default. It loads the web app from `
 Dev servers are started and managed automatically — no need to run them manually.
 
 ## Database
+
+The application uses PostgreSQL through Drizzle ORM. Generate migrations in source control, then apply them with `db:migrate` before starting a fresh environment. `db:push` is intended only for disposable development databases.
 
 ```sh
 cd packages/web
