@@ -32,5 +32,5 @@ RUN cd packages/web && bun run build
 ENV PORT=10000
 EXPOSE 10000
 
-# Start server
-CMD ["bun", "run", "packages/web/src/server.ts"]
+# Apply committed migrations before accepting traffic, then start the server.
+CMD ["sh", "-c", "cd packages/web && bun run db:migrate:deploy && bun src/server.ts"]

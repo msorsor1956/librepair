@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/librepair
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.5
+      - run: bun install --frozen-lockfile
+      - name: Firebase authentication tests
+        working-directory: packages/web
+        run: bun test src/api/firebase-auth.test.ts
+      - name: Type checks
+        run: bun run typecheck
+      - name: Web production build
+        working-directory: packages/web
+        run: bun run build
+      - name: Admin production build
+        working-directory: packages/admin
+        run: bun run build
