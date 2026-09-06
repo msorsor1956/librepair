@@ -6,7 +6,6 @@ import {
   Mail, CheckCircle, ArrowRight, Gauge, Battery, Wind, Settings, Send, Loader2, Bell, ClipboardCheck
 } from "lucide-react";
 import { Navbar } from "../components/navbar";
-import { AnimatedLogo } from "../components/animated-logo";
 
 const fadeUp = {
   initial: { opacity: 0, y: 40 },
@@ -175,32 +174,23 @@ export default function LandingPage() {
       <Navbar />
 
       {/* Hero */}
-      <section className="relative min-h-screen flex items-center pt-[72px] overflow-hidden bg-grid">
-        {/* Background gradient */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-10" style={{ background: "radial-gradient(circle, #e02020, transparent 70%)" }} />
-          <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full opacity-5" style={{ background: "radial-gradient(circle, #c0c0c0, transparent 70%)" }} />
-        </div>
-
-        <div className="max-w-[1280px] mx-auto px-6 md:px-10 w-full">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
+      <section className="premium-hero relative min-h-[100dvh] flex items-center pt-[72px] overflow-hidden">
+        <img src="/librepair-service-bay.webp" alt="Automotive technician inspecting a sedan in a professional service bay" className="absolute inset-0 w-full h-full object-cover object-[67%_center]" fetchPriority="high" />
+        <div className="premium-hero-shade absolute inset-0" />
+        <div className="max-w-[1280px] mx-auto px-6 md:px-10 w-full relative z-10 py-16">
+          <div className="grid lg:grid-cols-[minmax(0,1.05fr)_minmax(300px,.62fr)] gap-10 items-end">
+            <div className="max-w-2xl">
               <motion.div
                 initial={{ opacity: 0, x: -40 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.7 }}
               >
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold mb-6" style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "var(--color-red)", border: "1px solid rgba(224,32,32,0.2)" }}>
-                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "var(--color-red)" }} />
-                  Automotive service, organized online
-                </div>
-                <h1 className="text-5xl md:text-7xl font-bold leading-tight mb-6" style={{ fontFamily: "Rajdhani, sans-serif" }}>
-                  YOUR CAR,<br />
-                  <span className="text-gradient">EXPERTLY</span><br />
-                  REPAIRED.
+                <div className="text-sm font-semibold uppercase tracking-[.18em] mb-5" style={{ color: "#ff5a55" }}>Automotive service, organized online</div>
+                <h1 className="text-[clamp(3.4rem,7vw,6.8rem)] font-bold leading-[.88] tracking-[-.045em] mb-6" style={{ fontFamily: "Rajdhani, sans-serif" }}>
+                  REPAIR,<br /><span style={{ color: "#ff4b46" }}>WITHOUT THE</span><br />RUNAROUND.
                 </h1>
-                <p className="text-lg mb-8 leading-relaxed max-w-md" style={{ color: "var(--color-silver)" }}>
-                  Request in-shop or mobile service, keep your vehicle details together, and follow each appointment from one account.
+                <p className="text-lg md:text-xl mb-8 leading-relaxed max-w-xl" style={{ color: "#d8dadd" }}>
+                  Request service, choose where it happens, and keep every appointment organized in one account.
                 </p>
 
                 <div className="flex flex-wrap gap-3 mb-10">
@@ -228,76 +218,16 @@ export default function LandingPage() {
                   </Link>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" style={{ color: "var(--color-silver)" }}>
-                  <span className="flex items-center gap-2"><CheckCircle size={15} color="var(--color-red)" /> In-shop or mobile</span>
-                  <span className="flex items-center gap-2"><CheckCircle size={15} color="var(--color-red)" /> Guided scheduling</span>
-                  <span className="flex items-center gap-2"><CheckCircle size={15} color="var(--color-red)" /> Account history</span>
-                </div>
               </motion.div>
             </div>
-
-            {/* Hero Visual — Animated Logo */}
-            <div className="relative hidden lg:flex items-center justify-center">
-              <div className="relative">
-                <AnimatedLogo size={480} showGlow />
-
-                {/* Floating badge — top right */}
-                <motion.div
-                  className="absolute top-8 -right-6 glass-red rounded-xl px-4 py-3"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0, y: [0, -6, 0] }}
-                  transition={{
-                    opacity: { duration: 0.5, delay: 0.8 },
-                    x: { duration: 0.5, delay: 0.8 },
-                    y: { duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1.2 },
-                  }}
-                >
-                  <div className="text-xs font-semibold" style={{ color: "var(--color-white)" }}>🔧 In Progress</div>
-                  <div className="text-xs mt-1" style={{ color: "var(--color-silver)" }}>Oil Change — ETA 20min</div>
-                </motion.div>
-
-                {/* Floating badge — bottom left */}
-                <motion.div
-                  className="absolute bottom-8 -left-6 glass rounded-xl px-4 py-3"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0, y: [0, 6, 0] }}
-                  transition={{
-                    opacity: { duration: 0.5, delay: 1.0 },
-                    x: { duration: 0.5, delay: 1.0 },
-                    y: { duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 1.5 },
-                  }}
-                >
-                  <div className="text-xs font-semibold" style={{ color: "var(--color-white)" }}>✓ Completed</div>
-                  <div className="text-xs mt-1" style={{ color: "var(--color-silver)" }}>Brake Repair — Saved $80</div>
-                </motion.div>
-
-                {/* Floating badge — bottom right */}
-                <motion.div
-                  className="absolute bottom-16 -right-4 glass rounded-xl px-4 py-3"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: [0, -4, 0] }}
-                  transition={{
-                    opacity: { duration: 0.5, delay: 1.2 },
-                    y: { duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1.8 },
-                  }}
-                >
-                  <div className="text-xs font-semibold" style={{ color: "var(--color-white)" }}>Service history</div>
-                  <div className="text-xs mt-1" style={{ color: "var(--color-silver)" }}>Records stay with your account</div>
-                </motion.div>
-              </div>
-            </div>
+            <motion.aside initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .35, duration: .6 }} className="service-console">
+              <p className="text-sm font-semibold mb-5">Choose your service path</p>
+              <Link to="/book"><div className="service-console-row"><span><Wrench size={20}/> In-shop service</span><ArrowRight size={18}/></div></Link>
+              <Link to="/book?type=home"><div className="service-console-row"><span><MapPin size={20}/> Mobile service</span><ArrowRight size={18}/></div></Link>
+              <Link to="/cars-for-sale"><div className="service-console-row"><span><Car size={20}/> Vehicle listings</span><ArrowRight size={18}/></div></Link>
+              <p className="text-sm mt-5" style={{ color: "#a9adb2" }}>Sign in to save vehicles and follow appointments.</p>
+            </motion.aside>
           </div>
-        </div>
-      </section>
-
-      {/* CTA Strip */}
-      <section className="py-6 overflow-hidden" style={{ backgroundColor: "var(--color-red)" }}>
-        <div className="flex gap-12 whitespace-nowrap animate-[slide_20s_linear_infinite]" style={{ display: "flex" }}>
-          {Array(8).fill(null).map((_, i) => (
-            <span key={i} className="text-white font-bold text-sm uppercase tracking-wider" style={{ fontFamily: "Rajdhani" }}>
-              ★ Book Appointment &nbsp;&nbsp; ★ Oil Change &nbsp;&nbsp; ★ Home Service &nbsp;&nbsp; ★ Engine Diagnostics &nbsp;&nbsp;
-            </span>
-          ))}
         </div>
       </section>
 

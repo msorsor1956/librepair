@@ -3,15 +3,15 @@
 @import "tw-animate-css";
 
 :root {
-  --color-bg: #0a0a0a;
-  --color-surface: #141414;
-  --color-surface2: #1e1e1e;
-  --color-red: #e02020;
-  --color-red-dark: #b01818;
-  --color-silver: #c0c0c0;
+  --color-bg: #080a0c;
+  --color-surface: #111418;
+  --color-surface2: #191d22;
+  --color-red: #ef3e3a;
+  --color-red-dark: #c82d29;
+  --color-silver: #c9cdd2;
   --color-white: #ffffff;
-  --color-muted: #6b7280;
-  --color-border: #2a2a2a;
+  --color-muted: #858b94;
+  --color-border: #2a2f36;
   --color-success: #22c55e;
   --color-warning: #f59e0b;
 }
@@ -57,10 +57,46 @@ h1, h2, h3, h4, h5, h6, .font-display {
 }
 
 .glass {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(21, 24, 29, 0.82);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.premium-hero-shade {
+  background: linear-gradient(90deg, rgba(5,7,9,.98) 0%, rgba(5,7,9,.9) 39%, rgba(5,7,9,.34) 68%, rgba(5,7,9,.12) 100%), linear-gradient(0deg, rgba(5,7,9,.75), transparent 42%);
+}
+
+.service-console {
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 16px;
+  padding: 22px;
+  background: rgba(10,12,15,.78);
+  backdrop-filter: blur(18px) saturate(120%);
+  box-shadow: 0 24px 80px rgba(0,0,0,.34);
+}
+
+.service-console-row {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid rgba(255,255,255,.12);
+  color: white;
+  transition: color .2s ease, transform .2s ease;
+}
+.service-console-row span { display: flex; align-items: center; gap: 12px; }
+.service-console-row:hover { color: var(--color-red); transform: translateX(3px); }
+
+@media (max-width: 1023px) {
+  .premium-hero-shade { background: linear-gradient(90deg, rgba(5,7,9,.94), rgba(5,7,9,.56)), linear-gradient(0deg, rgba(5,7,9,.94), transparent 58%); }
+  .service-console { max-width: 540px; }
+}
+
+@media (max-width: 640px) {
+  .premium-hero img { object-position: 72% center; opacity: .55; }
+  .premium-hero-shade { background: linear-gradient(0deg, rgba(5,7,9,.99) 5%, rgba(5,7,9,.66) 100%); }
 }
 
 .glass-red {
