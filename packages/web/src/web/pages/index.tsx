@@ -2,8 +2,8 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
 import {
-  Wrench, Car, Zap, Shield, Star, Clock, MapPin, ChevronRight,
-  Phone, Mail, CheckCircle, ArrowRight, Gauge, Battery, Wind, Settings, Send, Loader2
+  Wrench, Car, Zap, Shield, Clock, MapPin,
+  Mail, CheckCircle, ArrowRight, Gauge, Battery, Wind, Settings, Send, Loader2, Bell, ClipboardCheck
 } from "lucide-react";
 import { Navbar } from "../components/navbar";
 import { AnimatedLogo } from "../components/animated-logo";
@@ -24,11 +24,15 @@ const services = [
   { icon: <Wind size={28} />, name: "AC Repair", desc: "Refrigerant recharge, leak inspection, compressor check", price: "$129.99" },
 ];
 
-const testimonials = [
-  { name: "Marcus Johnson", role: "Tesla Model 3 Owner", rating: 5, comment: "LIBrepair saved my car and my time. The mechanic arrived within an hour and fixed the issue on-site. Incredible service." },
-  { name: "Sarah Williams", role: "BMW X5 Owner", rating: 5, comment: "Professional, fast, and affordable. My oil change was done in 45 minutes. I'll never go to another shop." },
-  { name: "David Chen", role: "Honda Accord Owner", rating: 5, comment: "The live tracking feature is amazing. I knew exactly when my car would be ready. Highly recommend LIBrepair." },
+const platformFeatures = [
+  { icon: <CalendarIcon />, title: "One clear booking flow", desc: "Choose a service, vehicle, preferred time, and payment method in one guided request." },
+  { icon: <Bell size={22} />, title: "Updates in one place", desc: "Check appointments, notifications, service history, and reminders from your account." },
+  { icon: <ClipboardCheck size={22} />, title: "Details before the work", desc: "Review the selected service and booking fee before confirming your request." },
 ];
+
+function CalendarIcon() {
+  return <Clock size={22} />;
+}
 
 const steps = [
   { step: "01", title: "Book Online", desc: "Select your service, date, and preferred mechanic in minutes" },
@@ -82,15 +86,6 @@ function ContactSection() {
             <div>
               <h3 className="text-xl font-bold mb-4" style={{ fontFamily: "Rajdhani" }}>REACH US DIRECTLY</h3>
               <div className="space-y-4">
-                <a href="tel:+1800LIBREPAIR" className="flex items-center gap-4 glass px-5 py-4 rounded-xl hover:border-red-500 transition-all group">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "var(--color-red)" }}>
-                    <Phone size={18} />
-                  </div>
-                  <div>
-                    <div className="text-xs mb-0.5" style={{ color: "var(--color-muted)" }}>Phone</div>
-                    <div className="font-semibold">1-800-LIBREPAIR</div>
-                  </div>
-                </a>
                 <a href="mailto:info@librepair.com" className="flex items-center gap-4 glass px-5 py-4 rounded-xl hover:border-red-500 transition-all group">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "var(--color-red)" }}>
                     <Mail size={18} />
@@ -112,12 +107,12 @@ function ContactSection() {
               </div>
             </div>
             <div className="glass rounded-xl p-5" style={{ border: "1px solid var(--color-border)" }}>
-              <div className="text-sm font-semibold mb-1" style={{ color: "var(--color-red)" }}>Business Hours</div>
-              <div className="text-sm space-y-1" style={{ color: "var(--color-silver)" }}>
-                <div className="flex justify-between"><span>Mon – Fri</span><span className="font-medium" style={{ color: "var(--color-white)" }}>7:00 AM – 7:00 PM</span></div>
-                <div className="flex justify-between"><span>Saturday</span><span className="font-medium" style={{ color: "var(--color-white)" }}>8:00 AM – 5:00 PM</span></div>
-                <div className="flex justify-between"><span>Sunday</span><span className="font-medium" style={{ color: "var(--color-muted)" }}>Emergency only</span></div>
-              </div>
+              <div className="text-sm font-semibold mb-3" style={{ color: "var(--color-red)" }}>For faster help</div>
+              <ul className="text-sm space-y-3" style={{ color: "var(--color-silver)" }}>
+                <li className="flex gap-2"><CheckCircle size={16} className="shrink-0 mt-0.5" color="var(--color-red)"/> Include the vehicle year, make, and model.</li>
+                <li className="flex gap-2"><CheckCircle size={16} className="shrink-0 mt-0.5" color="var(--color-red)"/> Describe warning lights, sounds, leaks, or recent work.</li>
+                <li className="flex gap-2"><CheckCircle size={16} className="shrink-0 mt-0.5" color="var(--color-red)"/> Do not send passwords or complete payment-card details.</li>
+              </ul>
             </div>
           </motion.div>
 
@@ -197,7 +192,7 @@ export default function LandingPage() {
               >
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold mb-6" style={{ backgroundColor: "rgba(224,32,32,0.1)", color: "var(--color-red)", border: "1px solid rgba(224,32,32,0.2)" }}>
                   <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "var(--color-red)" }} />
-                  Premium Automotive Repair Platform
+                  Automotive service, organized online
                 </div>
                 <h1 className="text-5xl md:text-7xl font-bold leading-tight mb-6" style={{ fontFamily: "Rajdhani, sans-serif" }}>
                   YOUR CAR,<br />
@@ -205,7 +200,7 @@ export default function LandingPage() {
                   REPAIRED.
                 </h1>
                 <p className="text-lg mb-8 leading-relaxed max-w-md" style={{ color: "var(--color-silver)" }}>
-                  Book certified mechanics for in-shop or home service. Real-time tracking, secure payments, and maintenance reminders — all in one platform.
+                  Request in-shop or mobile service, keep your vehicle details together, and follow each appointment from one account.
                 </p>
 
                 <div className="flex flex-wrap gap-3 mb-10">
@@ -233,13 +228,10 @@ export default function LandingPage() {
                   </Link>
                 </div>
 
-                <div className="flex items-center gap-8">
-                  {[{ val: "10K+", label: "Cars Serviced" }, { val: "500+", label: "Mechanics" }, { val: "4.9★", label: "Rating" }].map((stat) => (
-                    <div key={stat.label}>
-                      <div className="text-2xl font-bold" style={{ fontFamily: "Rajdhani", color: "var(--color-white)" }}>{stat.val}</div>
-                      <div className="text-xs" style={{ color: "var(--color-muted)" }}>{stat.label}</div>
-                    </div>
-                  ))}
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" style={{ color: "var(--color-silver)" }}>
+                  <span className="flex items-center gap-2"><CheckCircle size={15} color="var(--color-red)" /> In-shop or mobile</span>
+                  <span className="flex items-center gap-2"><CheckCircle size={15} color="var(--color-red)" /> Guided scheduling</span>
+                  <span className="flex items-center gap-2"><CheckCircle size={15} color="var(--color-red)" /> Account history</span>
                 </div>
               </motion.div>
             </div>
@@ -289,8 +281,8 @@ export default function LandingPage() {
                     y: { duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1.8 },
                   }}
                 >
-                  <div className="text-xs font-semibold" style={{ color: "var(--color-white)" }}>⭐ 4.9 Rating</div>
-                  <div className="text-xs mt-1" style={{ color: "var(--color-silver)" }}>10K+ Cars Served</div>
+                  <div className="text-xs font-semibold" style={{ color: "var(--color-white)" }}>Service history</div>
+                  <div className="text-xs mt-1" style={{ color: "var(--color-silver)" }}>Records stay with your account</div>
                 </motion.div>
               </div>
             </div>
@@ -379,38 +371,26 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Platform features */}
       <section className="py-24 px-6 md:px-10">
         <div className="max-w-[1280px] mx-auto">
           <motion.div {...fadeUp} className="text-center mb-16">
-            <div className="text-sm font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--color-red)" }}>Testimonials</div>
-            <h2 className="text-4xl md:text-5xl font-bold" style={{ fontFamily: "Rajdhani" }}>WHAT CUSTOMERS SAY</h2>
+            <div className="text-sm font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--color-red)" }}>Built for clarity</div>
+            <h2 className="text-4xl md:text-5xl font-bold" style={{ fontFamily: "Rajdhani" }}>LESS GUESSWORK. MORE CONTROL.</h2>
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map((t, i) => (
+            {platformFeatures.map((feature, i) => (
               <motion.div
-                key={t.name}
+                key={feature.title}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.1 }}
                 className="glass rounded-xl p-6"
               >
-                <div className="flex gap-1 mb-4">
-                  {Array(t.rating).fill(null).map((_, j) => (
-                    <Star key={j} size={14} fill="#e02020" color="#e02020" />
-                  ))}
-                </div>
-                <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--color-silver)" }}>"{t.comment}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: "var(--color-red)" }}>
-                    {t.name[0]}
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold">{t.name}</div>
-                    <div className="text-xs" style={{ color: "var(--color-muted)" }}>{t.role}</div>
-                  </div>
-                </div>
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5" style={{ color: "var(--color-red)", background: "rgba(224,32,32,.1)" }}>{feature.icon}</div>
+                <h3 className="text-xl font-bold mb-2" style={{ fontFamily: "Rajdhani" }}>{feature.title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--color-silver)" }}>{feature.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -429,25 +409,13 @@ export default function LandingPage() {
                 <span className="text-gradient">CAR OWNERS</span>
               </h2>
               <p className="text-base leading-relaxed mb-6" style={{ color: "var(--color-silver)" }}>
-                LIBrepair was founded by a team of automotive engineers and software builders who were tired of overpriced, opaque repair shops. We built a platform that puts certified mechanics at your fingertips — whether you're at home, at work, or on the road.
+                LIBrepair brings booking, vehicle information, appointment updates, and service records into one straightforward experience.
               </p>
               <p className="text-base leading-relaxed mb-10" style={{ color: "var(--color-silver)" }}>
-                Every mechanic on our platform is background-checked, certified, and rated by real customers. We believe car repair should be fast, fair, and fully transparent.
+                Start with the service you need, choose where it should happen, and review your request before submitting it. Availability and final repair cost are confirmed with your appointment.
               </p>
 
-              {/* Stats row */}
-              <div className="grid grid-cols-3 gap-6">
-                {[
-                  { val: "10K+", label: "Cars Serviced" },
-                  { val: "500+", label: "Certified Mechanics" },
-                  { val: "4.9★", label: "Average Rating" },
-                ].map((stat) => (
-                  <div key={stat.label} className="text-center glass rounded-xl p-4">
-                    <div className="text-3xl font-bold mb-1" style={{ fontFamily: "Rajdhani", color: "var(--color-red)" }}>{stat.val}</div>
-                    <div className="text-xs" style={{ color: "var(--color-muted)" }}>{stat.label}</div>
-                  </div>
-                ))}
-              </div>
+              <Link to="/welcome"><button className="px-6 py-3 rounded-lg font-semibold text-white" style={{ background: "var(--color-red)" }}>Create your account</button></Link>
             </motion.div>
 
             {/* Right — values grid */}
@@ -459,10 +427,10 @@ export default function LandingPage() {
               className="grid grid-cols-2 gap-4"
             >
               {[
-                { icon: <Shield size={24} />, title: "Certified Mechanics", desc: "Every technician is ASE-certified and background-verified before joining our platform." },
-                { icon: <Clock size={24} />, title: "Same-Day Service", desc: "Book in minutes and get your car serviced the same day, at your convenience." },
-                { icon: <Wrench size={24} />, title: "Guaranteed Work", desc: "All repairs come with a 90-day parts and labor warranty. No questions asked." },
-                { icon: <Star size={24} />, title: "Transparent Pricing", desc: "No hidden fees. You know exactly what you pay before the work begins." },
+                { icon: <Shield size={24} />, title: "Account access", desc: "Your vehicles, appointments, and service details are organized behind your sign-in." },
+                { icon: <Clock size={24} />, title: "Preferred scheduling", desc: "Request the date and time that works for you, subject to confirmation." },
+                { icon: <Wrench size={24} />, title: "In-shop or mobile", desc: "Choose the service location that fits your request and availability." },
+                { icon: <CheckCircle size={24} />, title: "Review before submit", desc: "See your selected service, vehicle, schedule, and fee before confirmation." },
               ].map((item, i) => (
                 <motion.div
                   key={item.title}
@@ -539,43 +507,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* App Download */}
-      <section className="py-24 px-6 md:px-10">
-        <div className="max-w-[1280px] mx-auto">
-          <motion.div
-            {...fadeUp}
-            className="glass rounded-2xl p-8 md:p-14 text-center relative overflow-hidden"
-          >
-            <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #e02020, transparent 70%)" }} />
-            </div>
-            <div className="relative z-10">
-              <div className="text-sm font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--color-red)" }}>Mobile App</div>
-              <h2 className="text-4xl md:text-5xl font-bold mb-4" style={{ fontFamily: "Rajdhani" }}>TAKE LIBREPAIR ANYWHERE</h2>
-              <p className="mb-8 max-w-xl mx-auto" style={{ color: "var(--color-silver)" }}>
-                Book services, track repairs in real time, and get maintenance reminders — all from your phone.
-              </p>
-              <div className="flex flex-wrap justify-center gap-4">
-                <button className="flex items-center gap-3 px-6 py-3 rounded-xl font-medium" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }}>
-                  <span className="text-2xl">🍎</span>
-                  <div className="text-left">
-                    <div className="text-xs" style={{ color: "var(--color-muted)" }}>Download on the</div>
-                    <div className="text-sm font-semibold">App Store</div>
-                  </div>
-                </button>
-                <button className="flex items-center gap-3 px-6 py-3 rounded-xl font-medium" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", color: "var(--color-white)" }}>
-                  <span className="text-2xl">🤖</span>
-                  <div className="text-left">
-                    <div className="text-xs" style={{ color: "var(--color-muted)" }}>Get it on</div>
-                    <div className="text-sm font-semibold">Google Play</div>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
       {/* Cars for Sale CTA */}
       <section className="py-20 px-6 md:px-10 relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
@@ -596,7 +527,7 @@ export default function LandingPage() {
                 LOOKING FOR YOUR<br /><span className="text-gradient">NEXT VEHICLE?</span>
               </h2>
               <p className="max-w-md" style={{ color: "var(--color-silver)" }}>
-                Browse our certified pre-owned inventory. Every vehicle inspected and serviced by our expert mechanics. Quality you can trust.
+                Review current vehicle listings and contact the team for availability, condition details, and the next step.
               </p>
             </div>
             <div className="flex-shrink-0">
@@ -620,11 +551,11 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="LIBrepair" className="h-8 w-auto" />
           </div>
-          <p className="text-sm" style={{ color: "var(--color-muted)" }}>© 2025 LIBrepair. All rights reserved.</p>
+          <p className="text-sm" style={{ color: "var(--color-muted)" }}>© 2026 LIBrepair. All rights reserved.</p>
           <div className="flex gap-6 text-sm" style={{ color: "var(--color-muted)" }}>
-            <a href="#" className="hover:text-white transition-colors">Privacy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms</a>
-            <a href="#" className="hover:text-white transition-colors">Support</a>
+            <Link to="/privacy"><span className="hover:text-white transition-colors">Privacy</span></Link>
+            <Link to="/terms"><span className="hover:text-white transition-colors">Terms</span></Link>
+            <Link to="/support"><span className="hover:text-white transition-colors">Support</span></Link>
           </div>
         </div>
       </footer>

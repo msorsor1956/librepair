@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { authClient, clearToken } from "../lib/auth";
 import { useState } from "react";
-import { Menu, X, Bell, ChevronDown } from "lucide-react";
+import { Menu, X, ChevronDown } from "lucide-react";
 
 export function Navbar() {
   const { data: session } = authClient.useSession();
@@ -62,6 +62,8 @@ export function Navbar() {
               <div className="relative">
                 <button
                   onClick={() => setDropOpen(!dropOpen)}
+                  aria-label="Open account menu"
+                  aria-expanded={dropOpen}
                   className="flex items-center gap-2 text-sm font-medium"
                   style={{ color: "var(--color-silver)" }}
                 >
@@ -103,7 +105,7 @@ export function Navbar() {
         </div>
 
         {/* Mobile menu toggle */}
-        <button className="md:hidden" style={{ color: "var(--color-white)" }} onClick={() => setMenuOpen(!menuOpen)}>
+        <button className="md:hidden w-11 h-11 grid place-items-center rounded-lg" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} style={{ color: "var(--color-white)" }} onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
